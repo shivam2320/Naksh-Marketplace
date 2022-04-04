@@ -1,7 +1,8 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
 /**  
-* @title An NFT Marketplace contract for Naksh NFTs - Non Fungible Tattoo Tokens
+* @title An NFT Marketplace contract for Naksh NFTs
 * @notice This is the Naksh Marketplace contract for Minting NFTs and Direct Sale only.
 * @dev Most function calls are currently implemented with access control
 */
@@ -55,6 +56,13 @@ contract NakshNFT is ERC721URIStorage {
         Admin,
         Artist
     }
+
+    // struct soldNFT {
+    //     address buyer;
+    //     uint256 tokenId;
+    // }
+
+    //soldNFT[] soldIds;
 
     struct NFTData {
         uint tokenId;
@@ -237,13 +245,13 @@ contract NakshNFT is ERC721URIStorage {
         return (orgFee, creatorFee, blackUniFee, orgFeeInitial, sellerFeeInitial, blackUniFeeInital);
     }
 
-    /**
-    * This function is used to set the price of a token
-    * @notice Only admin is allowed to set the price of a token
-    */
-    function setPrice(uint256 tokenId, uint256 price) public onlyAdmin {
-        salePrice[tokenId] = price;
-    }
+    // /**
+    // * This function is used to set the price of a token
+    // * @notice Only admin is allowed to set the price of a token
+    // */
+    // function setPrice(uint256 tokenId, uint256 price) public onlyAdmin {
+    //     salePrice[tokenId] = price;
+    // }
 
     /**
     * This function is used to change the price of a token
@@ -327,11 +335,10 @@ contract NakshNFT is ERC721URIStorage {
     /**
     * This function is used to buy an NFT which is on sale.
     */
-    function buyTokenOnSale(uint256 tokenId, address _nftAddress)
+    function buyTokenOnSale(uint256 tokenId)
         public
         payable
     {
-        ERC721 nftAddress = ERC721(_nftAddress);
 
         uint256 price = salePrice[tokenId];
         uint256 sellerFees = getSellerFee();
@@ -344,9 +351,9 @@ contract NakshNFT is ERC721URIStorage {
             msg.value == price,
             "buyToken: price doesn't equal salePrice[tokenId]"
         );
-        address tOwner = nftAddress.ownerOf(tokenId);
+        address tOwner = ownerOf(tokenId);
 
-        nftAddress.safeTransferFrom(tOwner, msg.sender, tokenId);
+        safeTransferFrom(tOwner, msg.sender, tokenId);
         salePrice[tokenId] = 0;
 
         if(tokenFirstSale[tokenId] == false) {
@@ -380,8 +387,11 @@ contract NakshNFT is ERC721URIStorage {
         
         Naksh_org.transfer(toPlatform);
         payable(blackUni_org).transfer(toBlackUnicorn);
+
+        // soldNFT memory _soldNFT = soldNFT(msg.sender, tokenId);
+        // soldIds.push(_soldNFT);
         
-        emit Sold(msg.sender, tOwner, msg.value,tokenId);
+        emit Sold(msg.sender, tOwner, msg.value, tokenId);
     }
 
     /** @dev The redeemable status of the tattoo will be set by 
