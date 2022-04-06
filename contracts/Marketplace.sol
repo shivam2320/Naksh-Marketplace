@@ -538,7 +538,6 @@ contract NakshNFT is ERC721URIStorage {
         require(nftAuction.endTime <= block.timestamp, "Auction has not yet ended");
 
         if (nftAuction.highestBidder != address(0)) {
-            uint256 price = salePrice[_tokenId];
             uint256 sellerFees = getSellerFee();
             uint256 creatorRoyalty = creatorFee;
             uint256 platformFees = orgFee;
@@ -566,13 +565,12 @@ contract NakshNFT is ERC721URIStorage {
         
             payable(msg.sender).transfer(toSeller);
             if(toCreator != 0) {
-            payable(tokenCreatorAddress).transfer(toCreator);
+                payable(tokenCreatorAddress).transfer(toCreator);
             }   
         
             Naksh_org.transfer(toPlatform);
 
             safeTransferFrom(address(this), nftAuction.highestBidder, _tokenId);
-            payable(msg.sender).transfer(nftAuction.highestBid);
 
         } else {
             safeTransferFrom(address(this), msg.sender, _tokenId);
