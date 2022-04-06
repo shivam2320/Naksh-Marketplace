@@ -543,8 +543,37 @@ contract NakshNFT is ERC721URIStorage {
             uint256 creatorRoyalty = creatorFee;
             uint256 platformFees = orgFee;
 
+            if(tokenFirstSale[_tokenId] == false) {
+            /* Platform takes 5% on each artist's first sale
+            *  All values are multiplied by 100 to deal with floating points
+            */
+            platformFees = orgFeeInitial;
+            sellerFees = sellerFeeInitial;
+            // No creator royalty/royalties when artist is minting for the first time
+            creatorRoyalty = 0;
+
+            tokenFirstSale[_tokenId] = true;
+            }   
+        
+            //Dividing by 100*100 as all values are multiplied by 100
+            uint256 toSeller = (nftAuction.highestBid * sellerFees) / FLOAT_HANDLER_TEN_4;
+
+            //Dividing by 100*100 as all values are multiplied by 100
+            uint256 toCreator = (nftAuction.highestBid * creatorRoyalty) / FLOAT_HANDLER_TEN_4;
+            uint256 toPlatform = (nftAuction.highestBid * platformFees) / FLOAT_HANDLER_TEN_4;
+        
+            address tokenCreatorAddress = tokenCreator[_tokenId];
+        
+            payable(msg.sender).transfer(toSeller);
+            if(toCreator != 0) {
+            payable(tokenCreatorAddress).transfer(toCreator);
+            }   
+        
+            Naksh_org.transfer(toPlatform);
+
             safeTransferFrom(address(this), nftAuction.highestBidder, _tokenId);
             payable(msg.sender).transfer(nftAuction.highestBid);
+
         } else {
             safeTransferFrom(address(this), msg.sender, _tokenId);
         }
