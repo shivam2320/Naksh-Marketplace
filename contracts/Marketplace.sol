@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 /**  
 * @title An NFT Marketplace contract for Naksh NFTs
-* @notice This is the Naksh Marketplace contract for Minting NFTs and Direct Sale only.
+* @notice This is the Naksh Marketplace contract for Minting NFTs and Direct Sale + Auction.
 * @dev Most function calls are currently implemented with access control
 */
 
@@ -25,7 +25,6 @@ contract NakshNFT is ERC721URIStorage {
     mapping(uint => bool) private tattooRedeemed;
     //This is to determine the platform royalty for the first sale made by the creator
     mapping(uint => bool) private tokenFirstSale;
-    mapping(address => bool) whitelistPartnerMapping;
 
     event SalePriceSet(uint256 indexed _tokenId, uint256 indexed _price);
     event Sold(address indexed _buyer, address indexed _seller, uint256 _amount, uint256 indexed _tokenId);
@@ -40,14 +39,11 @@ contract NakshNFT is ERC721URIStorage {
     address owner;
     address _grantedOwner;
     address admin;
-    address blackUni_org;
     uint256 sellerFee;
     uint256 orgFee;
     uint256 creatorFee;
-    uint256 blackUniFee;
     uint256 sellerFeeInitial;
     uint256 orgFeeInitial;
-    uint256 blackUniFeeInital;
     address payable Naksh_org;
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
@@ -56,13 +52,6 @@ contract NakshNFT is ERC721URIStorage {
         Admin,
         Artist
     }
-
-    // struct soldNFT {
-    //     address buyer;
-    //     uint256 tokenId;
-    // }
-
-    //soldNFT[] soldIds;
 
     struct NFTData {
         uint tokenId;
@@ -107,18 +96,9 @@ contract NakshNFT is ERC721URIStorage {
         _;
     }
 
-    /**
-    * Modifier to allow only registered partner or owner to perform certaiin actions
-    */
-    modifier onlyPartnerOrOwner() {
-        require(msg.sender == owner || whitelistPartnerMapping[msg.sender] == true, "Only partner or ownercan call this function");
-        _;
-    }
-
     constructor(string memory _name, 
         string memory _symbol,
         address payable org,
-        address payable blackUnicornOrg,
         address payable _admin
         )
         ERC721(_name, _symbol)
@@ -126,17 +106,13 @@ contract NakshNFT is ERC721URIStorage {
         owner = msg.sender;
         admin = _admin;
         Naksh_org = org;
-        blackUni_org = blackUnicornOrg;
-        //Royalty Fee is fixed to be 1% of sales, org fee to be 1% and black unicorn to 0.5%
         //Multiply all the three % variables by 100, to kepe it uniform
-        orgFee = 100;
-        creatorFee = 100;
-        blackUniFee = 50;
-        sellerFee = 10000 - orgFee - creatorFee - blackUniFee;
+        orgFee = 500;
+        creatorFee = 1500;
+        sellerFee = 10000 - orgFee - creatorFee;
         // Fees for first sale only
-        orgFeeInitial = 200;
-        blackUniFeeInital = 50;
-        sellerFeeInitial = 10000-orgFeeInitial-blackUniFeeInital;
+        orgFeeInitial = 500;
+        sellerFeeInitial = 10000 - orgFeeInitial;
     }
 
     /**
@@ -178,15 +154,6 @@ contract NakshNFT is ERC721URIStorage {
     }
 
     /**
-    * @dev Black Unicorn organisation address can be updated to another address in case of attack or compromise(`newOrg`)
-    * Can be done only by the contract owner.
-    */
-    function changeBlackUniAddress(address _blakcUniOrg) public onlyOwner {
-        require(_blakcUniOrg != address(0), "New organization cannot be zero address");
-        blackUni_org = payable(_blakcUniOrg);
-    }
-
-    /**
     * @dev This function is used to get the seller percentage. 
     * This refers to the amount of money that would be distributed to the seller 
     * after the reduction of royalty and platform fees.
@@ -205,13 +172,12 @@ contract NakshNFT is ERC721URIStorage {
     * are set in this function.
     * The 'sellerFee' indicates the final amount to be sent to the seller.
     */
-    function setRoyaltyPercentage(uint256 _orgFee, uint _creatorFee, uint _blackUnicornFee) public onlyOwner returns (bool) {
+    function setRoyaltyPercentage(uint256 _orgFee, uint _creatorFee) public onlyOwner returns (bool) {
         //Sum of org fee and creator fee should be 100%
-        require(10000 > _orgFee+_creatorFee+_blackUnicornFee, "Sum of creator fee and org fee should be 100%");
+        require(10000 > _orgFee+_creatorFee, "Sum of creator fee and org fee should be 100%");
         orgFee = _orgFee;
         creatorFee = _creatorFee;
-        blackUniFee = _blackUnicornFee;
-        sellerFee = 10000 - orgFee - creatorFee - blackUniFee;
+        sellerFee = 10000 - orgFee - creatorFee;
         return true; 
     }
 
@@ -219,39 +185,28 @@ contract NakshNFT is ERC721URIStorage {
     * creator/artist(who would be the seller) on the first sale.
     * The first iteration of whitepaper has the following stats:
     * orgFee = 2%
-    * blackUnicornFee = 0.5%
     * artist royalty/creator fee = 0%
     * The above numbers can be updated later by the DAO
     * @notice _creatorFeeInitial should be sellerFeeInitial - seller fees on first sale
     */
-    function setRoyaltyPercentageFirstSale(uint256 _orgFeeInitial, uint _creatorFeeInitial, uint _blackUnicornFeeInitial) public onlyOwner returns (bool) {
+    function setRoyaltyPercentageFirstSale(uint256 _orgFeeInitial, uint _creatorFeeInitial) public onlyOwner returns (bool) {
         orgFeeInitial = _orgFeeInitial;
         sellerFeeInitial = _creatorFeeInitial;
-        _blackUnicornFeeInitial = _blackUnicornFeeInitial;
         return true;
     }
 
     /** @dev Return all the royalties including first sale and subsequent sale values
     * orgFee - % of fees that would go to the org from the total royalty
-    * blackUniFee - % of fees for Black Unicorn
     * creatorRoyalty - % of fees that would go to the artist/creator
     * orgInitialRoyalty - % of fees that would go to the organisation on first sale
     * sellerFeeInitial - % of fees for seller on the first sale
-    * blackUniFeeInitial - % of fees that would go to Black Unicorn on first sale
     */
-    function getRoyalties() public view returns (uint _orgFee, uint _blackUniFee, uint256 _creatorRoyalty, 
-    uint256 _orgInitialRoyalty, uint256 _sellerFeeInitial, uint _blakcUniFeeInitial) {
+    function getRoyalties() public view returns (uint _orgFee, uint256 _creatorRoyalty, 
+    uint256 _orgInitialRoyalty, uint256 _sellerFeeInitial) {
         
-        return (orgFee, creatorFee, blackUniFee, orgFeeInitial, sellerFeeInitial, blackUniFeeInital);
+        return (orgFee, creatorFee, orgFeeInitial, sellerFeeInitial);
     }
 
-    // /**
-    // * This function is used to set the price of a token
-    // * @notice Only admin is allowed to set the price of a token
-    // */
-    // function setPrice(uint256 tokenId, uint256 price) public onlyAdmin {
-    //     salePrice[tokenId] = price;
-    // }
 
     /**
     * This function is used to change the price of a token
@@ -344,7 +299,6 @@ contract NakshNFT is ERC721URIStorage {
         uint256 sellerFees = getSellerFee();
         uint256 creatorRoyalty = creatorFee;
         uint256 platformFees = orgFee;
-        uint256 blackUnicornFee = blackUniFee;
 
         require(price != 0, "buyToken: price equals 0");
         require(
@@ -357,26 +311,23 @@ contract NakshNFT is ERC721URIStorage {
         salePrice[tokenId] = 0;
 
         if(tokenFirstSale[tokenId] == false) {
-            /* Platform takes 2.5% on each artist's first sale
+            /* Platform takes 5% on each artist's first sale
             *  All values are multiplied by 100 to deal with floating points
             */
             platformFees = orgFeeInitial;
             sellerFees = sellerFeeInitial;
-            blackUnicornFee = blackUniFeeInital;
-            //No creator royalty/royalties when artist is minting for the first time
+            // No creator royalty/royalties when artist is minting for the first time
             creatorRoyalty = 0;
 
             tokenFirstSale[tokenId] = true;
         }   
         
         //Dividing by 100*100 as all values are multiplied by 100
-        //
         uint256 toSeller = (msg.value * sellerFees) / FLOAT_HANDLER_TEN_4;
         
         //Dividing by 100*100 as all values are multiplied by 100
         uint256 toCreator = (msg.value*creatorRoyalty) / FLOAT_HANDLER_TEN_4;
         uint256 toPlatform = (msg.value*platformFees) / FLOAT_HANDLER_TEN_4;
-        uint256 toBlackUnicorn = (msg.value*blackUnicornFee) / FLOAT_HANDLER_TEN_4;
         
         address tokenCreatorAddress = tokenCreator[tokenId];
         
@@ -386,21 +337,10 @@ contract NakshNFT is ERC721URIStorage {
         }
         
         Naksh_org.transfer(toPlatform);
-        payable(blackUni_org).transfer(toBlackUnicorn);
 
-        // soldNFT memory _soldNFT = soldNFT(msg.sender, tokenId);
-        // soldIds.push(_soldNFT);
         
         emit Sold(msg.sender, tOwner, msg.value, tokenId);
     }
-
-    /** @dev The redeemable status of the tattoo will be set by 
-    * the partner or owner based on some conditions
-    */
-    // function setTattooRedeemable(uint tokenId) public view onlyPartnerOrOwner {
-    //     require(tattooRedeemed[tokenId] == false, "Tattoo has been previously redeemed");
-    //     tattooRedeemed[tokenId] == true;
-    // }
 
     /**
     * This function is used to return all the tokens created by a specific creator
@@ -437,25 +377,6 @@ contract NakshNFT is ERC721URIStorage {
         }
         
     }
-
-    /**
-    * This function is used to whitelist a tattoo partner on the platform
-    */
-    // function whitelistPartners(address _partner) public onlyOwner returns(bool) {
-    //     require(_partner != address(0), "Partner address has to be non-zero");
-    //     whitelistPartnerMapping[_partner] = true;
-    //     return whitelistPartnerMapping[_partner];
-    // }
-
-    // /**
-    // * This function is used to delist a tattoo partner on the platform
-    // */
-    // function delistPartners(address partner) public onlyOwner returns(bool){
-    //     require(partner != address(0), "Partner address has to be non-zero");
-    //     require(whitelistPartnerMapping[partner] = true, "Partner is not whitelisted");
-    //     whitelistPartnerMapping[partner] = false;
-    //     return whitelistPartnerMapping[partner];
-    // }
 
     /**
     * This is a getter function to get the current price of an NFT.
