@@ -25,6 +25,8 @@ contract NakshNFT is ERC721URIStorage {
     mapping(uint => bool) private tattooRedeemed;
     //This is to determine the platform royalty for the first sale made by the creator
     mapping(uint => bool) private tokenFirstSale;
+    mapping(uint => NFTAuction) public auctionData;
+    mapping(address => uint) public bids;
 
     event SalePriceSet(uint256 indexed _tokenId, uint256 indexed _price);
     event Sold(address indexed _buyer, address indexed _seller, uint256 _amount, uint256 indexed _tokenId);
@@ -33,6 +35,9 @@ contract NakshNFT is ERC721URIStorage {
     event OwnershipGranted(address indexed newOwner);
     event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
     event Mint(address indexed creator,uint indexed tokenId, string indexed tokenURI);
+    event startedAuction(uint startTime, uint endTime, uint indexed tokenId, address indexed owner, uint indexed price);
+    event stoppedAuction();
+    event bidded();
 
     uint constant FLOAT_HANDLER_TEN_4 = 10000;
 
@@ -63,6 +68,18 @@ contract NakshNFT is ERC721URIStorage {
     }
 
     NFTData[] mintedNfts;
+
+    struct NFTAuction {
+        uint startTime;
+        uint endTime;
+        uint tokenId;
+        address owner;
+        uint price;
+        uint highestBid;
+        address highestBidder;
+    }
+
+    NFTAuction[] auctionedNFTs;
 
     /**
     * Modifier to allow only minters to mint
@@ -474,6 +491,64 @@ contract NakshNFT is ERC721URIStorage {
         emit Mint(_creator[i],tokenId, _tokenURI[i]);
         }
         return tokenIds;
+    }
+
+    function startAuction(uint _tokenId, uint _price, uint _auctionTime) external onlyOwnerOf(_tokenId) returns (bool) {
+        uint _startTime = block.timestamp;
+
+        transferFrom(msg.sender, address(this), _tokenId);
+
+        uint _endTime = block.timestamp + _auctionTime;
+
+        NFTAuction memory nftAuction = NFTAuction(_startTime, _endTime, _tokenId, msg.sender, _price, 0, address(0));
+        auctionData[_tokenId] = nftAuction;
+        auctionedNFTs.push(nftAuction);
+
+        emit startedAuction(_startTime, _endTime, _tokenId, msg.sender, _price);
+
+        return true;
+    }
+
+    function bid(uint _tokenId) external payable returns (bool) {
+        NFTAuction memory nftAuction = auctionData[_tokenId];
+
+        require(nftAuction.endTime >= block.timestamp, "Auction has ended");
+        require(nftAuction.price <= msg.value, "Pay more than base price");
+        require(nftAuction.highestBid <= msg.value, "Pay more than highest bid");
+
+        if(nftAuction.highestBidder != address(0)) {
+            uint bal = bids[nftAuction.highestBidder];
+            bids[nftAuction.highestBidder] = 0;
+            payable(nftAuction.highestBidder).transfer(bal);
+            nftAuction.highestBid = msg.value;
+            bids[msg.sender] = nftAuction.highestBid;
+            nftAuction.highestBidder = msg.sender;
+        }
+
+        nftAuction.highestBidder = msg.sender;
+        nftAuction.highestBid = msg.value;
+        
+        return true;
+    }
+
+
+    function endAuction(uint _tokenId) external onlyOwnerOf(_tokenId) {
+        NFTAuction memory nftAuction = auctionData[_tokenId];
+
+        require(nftAuction.endTime <= block.timestamp, "Auction has not yet ended");
+
+        if (nftAuction.highestBidder != address(0)) {
+            uint256 price = salePrice[_tokenId];
+            uint256 sellerFees = getSellerFee();
+            uint256 creatorRoyalty = creatorFee;
+            uint256 platformFees = orgFee;
+
+            safeTransferFrom(address(this), nftAuction.highestBidder, _tokenId);
+            payable(msg.sender).transfer(nftAuction.highestBid);
+        } else {
+            safeTransferFrom(address(this), msg.sender, _tokenId);
+        }
+
     }
 
 }
