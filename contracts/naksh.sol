@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 /**  
 * @title An NFT Marketplace contract for Naksh NFTs
-* @notice This is the Naksh Marketplace contract for Minting NFTs.
+* @notice This is the Naksh Marketplace contract for Minting NFTs and Direct Sale + Auction.
 * @dev Most function calls are currently implemented with access control
 */
 
@@ -12,22 +12,28 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
 /* 
-* This is the Naksh Marketplace contract for Minting NFTs and Direct Sale only.
+* This is the Naksh Marketplace contract for Minting NFTs and Direct Sale + Auction.
 */
-contract NakshMarketplace {
+contract NakshNFTMarketplace is ERC721URIStorage {
 
     using SafeMath for uint256;
     mapping(uint256 => uint256) private salePrice;
+    mapping(address => bool) public creatorWhitelist;
+    mapping(uint256 => address) private tokenOwner;
+    mapping(uint256 => address) private tokenCreator;
+    mapping(address => uint[]) private creatorTokens;
     //This is to determine the platform royalty for the first sale made by the creator
     mapping(uint => bool) private tokenFirstSale;
     mapping(uint => NFTAuction) public auctionData;
     mapping(address => uint) public bids;
-    mapping(uint256 => address) private tokenCreator;
 
     event SalePriceSet(uint256 indexed _tokenId, uint256 indexed _price);
     event Sold(address indexed _buyer, address indexed _seller, uint256 _amount, uint256 indexed _tokenId);
+    event WhitelistCreator(address indexed _creator);
+    event DelistCreator(address indexed _creator);
     event OwnershipGranted(address indexed newOwner);
     event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
+    event Mint(address indexed creator,uint indexed tokenId, string indexed tokenURI);
     event startedAuction(uint startTime, uint endTime, uint indexed tokenId, address indexed owner, uint indexed price);
     event stoppedAuction();
     event bidded();
@@ -75,6 +81,14 @@ contract NakshMarketplace {
     NFTAuction[] auctionedNFTs;
 
     /**
+    * Modifier to allow only minters to mint
+    */
+    modifier onlyArtist() virtual {
+        require(creatorWhitelist[msg.sender] == true);
+        _;
+    }
+
+    /**
     * Modifier to allow only owners of a token to perform certain actions 
     */
     modifier onlyOwnerOf(uint256 _tokenId) {
@@ -103,6 +117,7 @@ contract NakshMarketplace {
         address payable org,
         address payable _admin
         )
+        ERC721(_name, _symbol)
     {
         owner = msg.sender;
         admin = _admin;
@@ -225,6 +240,56 @@ contract NakshMarketplace {
     function isTokenFirstSale(uint tokenId) external view returns(bool){
         return tokenFirstSale[tokenId];
     }
+
+    /**
+    * This function is used to mint an NFT for the Naksh marketplace.
+    * @dev The basic information related to the NFT needs to be passeed to this function,
+    * in order to store it on chain to avoid disputes in future.
+    */
+    function mintByArtist(string memory _tokenURI, string memory title,
+    string memory description, string memory artistName) public virtual onlyArtist returns (uint256 _tokenId) {
+        _tokenIds.increment();
+        uint256 tokenId = _tokenIds.current();
+        tokenOwner[tokenId] = msg.sender;
+
+       
+        _mint(msg.sender, tokenId);
+        _setTokenURI(tokenId, _tokenURI);
+
+        tokenCreator[tokenId] = msg.sender;
+        
+        NFTData memory nftNew = NFTData(tokenId, title, description, artistName, msg.sender, minter.Artist);
+        mintedNfts.push(nftNew);
+        
+        creatorTokens[msg.sender].push(tokenId);
+        emit Mint(msg.sender, tokenId, _tokenURI);
+        return tokenId;
+    }
+
+    /**
+    * This function is used to mint an NFT for the Naksh marketplace.
+    * @dev The basic information related to the NFT needs to be passeed to this function,
+    * in order to store it on chain to avoid disputes in future.
+    */
+    function mintByAdmin(address _creator, string memory _tokenURI, string memory title,
+    string memory description, string memory artistName) public virtual onlyAdmin returns (uint256 _tokenId) {
+        _tokenIds.increment();
+        uint256 tokenId = _tokenIds.current();
+        tokenOwner[tokenId] = _creator;
+
+       
+        _mint(_creator, tokenId);
+        _setTokenURI(tokenId, _tokenURI);
+
+        tokenCreator[tokenId] = _creator;
+        
+        NFTData memory nftNew = NFTData(tokenId, title, description, artistName, _creator, minter.Admin);
+        mintedNfts.push(nftNew);
+        
+        creatorTokens[_creator].push(tokenId);
+        emit Mint(_creator,tokenId, _tokenURI);
+        return tokenId;
+    }
     
     /**
     * This function is used to set an NFT on sale. 
@@ -294,10 +359,137 @@ contract NakshMarketplace {
     }
 
     /**
+    * This function is used to return all the tokens created by a specific creator
+    */
+    function tokenCreators(address _creator) external view onlyOwner returns(uint[] memory) {
+            return creatorTokens[_creator];
+    }
+
+    /**
+    * This function is used to whitelist a creator/ an artist on the platform
+    */
+    function whitelistCreator(address[] memory _creators) public onlyOwner {
+        for(uint i = 0; i < _creators.length; i++){
+            if(creatorWhitelist[_creators[i]]){
+                //Do nothing if address is already whitelisted
+            }
+            else {
+                creatorWhitelist[_creators[i]] = true;
+                emit WhitelistCreator(_creators[i]);
+            }
+        }
+        
+    }
+
+    /**
+    * This function is used to unlist/delist a creator from the platform
+    */
+    function delistCreator(address[] memory _creators) public onlyOwner {
+        for(uint i = 0; i < _creators.length; i++){
+            if (creatorWhitelist[_creators[i]] == true){
+                creatorWhitelist[_creators[i]] = false;
+                emit DelistCreator(_creators[i]);
+            }
+        }
+        
+    }
+
+    /**
     * This is a getter function to get the current price of an NFT.
     */
     function getSalePrice(uint256 tokenId) public view returns (uint256) {
         return salePrice[tokenId];
+    }
+
+     /**
+    * This function returns if a creator is whitelisted on the platform or no
+    */
+    function isWhitelisted(address _creator) external view returns (bool) {
+        return creatorWhitelist[_creator];
+    }
+
+    /**
+    * This returns the total number of NFTs minted on the platform
+    */
+    function totalSupply() public view virtual returns (uint256) {
+        return _tokenIds.current();
+    }
+
+    /**
+    *This function is used to burn NFT, only Admin is allowed
+    */
+    function burn(uint256 tokenId) public onlyAdmin {
+        _burn(tokenId);
+    }
+
+    /**
+    *This function allows to bulk mint NFTs
+    */
+    function bulkMintByArtist(string[] memory _tokenURI, string[] memory title,
+    string[] memory description, string[] memory artistName) public virtual onlyArtist returns (uint256[] memory _tokenId) {
+        
+        uint256[] memory tokenIds;
+
+        uint256 length = title.length;
+
+        for(uint i = 0; i < length;)
+        {
+        _tokenIds.increment();
+        uint256 tokenId = _tokenIds.current();
+        tokenOwner[tokenId] = msg.sender;
+        
+        tokenIds[i] = tokenId;
+   
+        _mint(msg.sender, tokenId);
+        _setTokenURI(tokenId, _tokenURI[i]);
+
+        tokenCreator[tokenId] = msg.sender;
+        
+        NFTData memory nftNew = NFTData(tokenId, title[i], description[i], artistName[i], msg.sender, minter.Artist);
+        mintedNfts.push(nftNew);
+        
+        creatorTokens[msg.sender].push(tokenId);
+
+        unchecked { ++i; }
+
+        emit Mint(msg.sender, tokenId, _tokenURI[i]);
+        }
+        return tokenIds;
+    }
+
+    /**
+    *This function allows to bulk mint NFTs
+    */
+    function bulkMintByAdmin(address[] memory _creator, string[] memory _tokenURI, string[] memory title,
+    string[] memory description, string[] memory artistName) public virtual onlyAdmin returns (uint256[] memory _tokenId) {
+        
+        uint256[] memory tokenIds;
+
+        uint256 length = _creator.length;
+
+        for(uint i = 0; i < length;)
+        {
+        _tokenIds.increment();
+        uint256 tokenId = _tokenIds.current();
+        tokenOwner[tokenId] = _creator[i];
+        
+        tokenIds[i] = tokenId;
+   
+        _mint(_creator[i], tokenId);
+        _setTokenURI(tokenId, _tokenURI[i]);
+
+        tokenCreator[tokenId] = _creator[i];
+        
+        NFTData memory nftNew = NFTData(tokenId, title[i], description[i], artistName[i], _creator[i], minter.Admin);
+        mintedNfts.push(nftNew);
+        
+        creatorTokens[_creator[i]].push(tokenId);
+
+        unchecked { ++i; }
+
+        emit Mint(_creator[i],tokenId, _tokenURI[i]);
+        }
+        return tokenIds;
     }
 
     function startAuction(uint _tokenId, uint _price, uint _auctionTime) external onlyOwnerOf(_tokenId) returns (bool) {
@@ -339,9 +531,10 @@ contract NakshMarketplace {
     }
 
 
-    function endAuction(uint _tokenId) external onlyOwnerOf(_tokenId) {
+    function endAuction(uint _tokenId) external{
         NFTAuction memory nftAuction = auctionData[_tokenId];
 
+        require(nftAuction.owner == msg.sender, "Only owner of nft can call this");
         require(nftAuction.endTime <= block.timestamp, "Auction has not yet ended");
 
         if (nftAuction.highestBidder != address(0)) {
