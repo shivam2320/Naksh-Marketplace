@@ -35,8 +35,8 @@ contract NakshNFTMarketplace is ERC721URIStorage {
     event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
     event Mint(address indexed creator,uint indexed tokenId, string indexed tokenURI);
     event startedAuction(uint startTime, uint endTime, uint indexed tokenId, address indexed owner, uint indexed price);
-    event stoppedAuction();
-    event bidded();
+    event endedAuction(uint indexed _tokenId, address indexed _buyer, uint indexed highestBID);
+    event bidding(uint indexed _tokenId, address indexed _bidder, uint indexed _amount);
 
     uint constant FLOAT_HANDLER_TEN_4 = 10000;
 
@@ -200,7 +200,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
     /** @dev Calculate the royalty distribution for organisation/platform and the
     * creator/artist(who would be the seller) on the first sale.
     * The first iteration of whitepaper has the following stats:
-    * orgFee = 2%
+    * orgFee = 5%
     * artist royalty/creator fee = 0%
     * The above numbers can be updated later by the DAO
     * @notice _creatorFeeInitial should be sellerFeeInitial - seller fees on first sale
@@ -528,6 +528,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         auctionData[_tokenId].highestBid = msg.value;
         }
         
+        emit bidding(_tokenId, msg.sender, msg.value);
         return true;
     }
 
@@ -578,6 +579,8 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         } else {
             nftAddress.safeTransferFrom(address(this), msg.sender, _tokenId);
         }
+
+        emit endedAuction(_tokenId, nftAuction.highestBidder, nftAuction.highestBid);
 
     }
 
