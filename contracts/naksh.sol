@@ -124,7 +124,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         Naksh_org = org;
         //Multiply all the three % variables by 100, to kepe it uniform
         orgFee = 500;
-        creatorFee = 1500;
+        creatorFee = 1000;
         sellerFee = 10000 - orgFee - creatorFee;
         // Fees for first sale only
         orgFeeInitial = 500;
@@ -300,16 +300,18 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         address tOwner = ownerOf(_tokenId);
         require(tOwner != address(0), "setSale: nonexistent token");
         salePrice[_tokenId] = price;
+        approve(address(this), _tokenId);
         emit SalePriceSet(_tokenId, price);
     }
 
     /**
     * This function is used to buy an NFT which is on sale.
     */
-    function buyTokenOnSale(uint256 tokenId)
+    function buyTokenOnSale(uint256 tokenId, address _nftAddress)
         public
         payable
     {
+        ERC721 nftAddress = ERC721(_nftAddress);
 
         uint256 price = salePrice[tokenId];
         uint256 sellerFees = getSellerFee();
@@ -321,9 +323,9 @@ contract NakshNFTMarketplace is ERC721URIStorage {
             msg.value == price,
             "buyToken: price doesn't equal salePrice[tokenId]"
         );
-        address tOwner = ownerOf(tokenId);
+        address tOwner = nftAddress.ownerOf(tokenId);
 
-        safeTransferFrom(tOwner, msg.sender, tokenId);
+        nftAddress.safeTransferFrom(tOwner, msg.sender, tokenId);
         salePrice[tokenId] = 0;
 
         if(tokenFirstSale[tokenId] == false) {
@@ -509,30 +511,31 @@ contract NakshNFTMarketplace is ERC721URIStorage {
     }
 
     function bid(uint _tokenId) external payable returns (bool) {
-        NFTAuction memory nftAuction = auctionData[_tokenId];
 
-        require(nftAuction.endTime >= block.timestamp, "Auction has ended");
-        require(nftAuction.price <= msg.value, "Pay more than base price");
-        require(nftAuction.highestBid <= msg.value, "Pay more than highest bid");
+        require(auctionData[_tokenId].endTime >= block.timestamp, "Auction has ended");
+        require(auctionData[_tokenId].price <= msg.value, "Pay more than base price");
+        require(auctionData[_tokenId].highestBid <= msg.value, "Pay more than highest bid");
 
-        if(nftAuction.highestBidder != address(0)) {
-            uint bal = bids[nftAuction.highestBidder];
-            bids[nftAuction.highestBidder] = 0;
-            payable(nftAuction.highestBidder).transfer(bal);
-            nftAuction.highestBid = msg.value;
-            bids[msg.sender] = nftAuction.highestBid;
-            nftAuction.highestBidder = msg.sender;
+        if(auctionData[_tokenId].highestBidder != address(0)) {
+            uint bal = bids[auctionData[_tokenId].highestBidder];
+            bids[auctionData[_tokenId].highestBidder] = 0;
+            payable(auctionData[_tokenId].highestBidder).transfer(bal);
+            auctionData[_tokenId].highestBid = msg.value;
+            bids[msg.sender] = auctionData[_tokenId].highestBid;
+            auctionData[_tokenId].highestBidder = msg.sender;
+        } else {
+        auctionData[_tokenId].highestBidder = msg.sender;
+        auctionData[_tokenId].highestBid = msg.value;
         }
-
-        nftAuction.highestBidder = msg.sender;
-        nftAuction.highestBid = msg.value;
         
         return true;
     }
 
 
-    function endAuction(uint _tokenId) external{
+    function endAuction(uint _tokenId, address _nftAddress) external{
         NFTAuction memory nftAuction = auctionData[_tokenId];
+
+        ERC721 nftAddress = ERC721(_nftAddress);
 
         require(nftAuction.owner == msg.sender, "Only owner of nft can call this");
         require(nftAuction.endTime <= block.timestamp, "Auction has not yet ended");
@@ -570,10 +573,10 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         
             Naksh_org.transfer(toPlatform);
 
-            safeTransferFrom(address(this), nftAuction.highestBidder, _tokenId);
+            nftAddress.safeTransferFrom(address(this), nftAuction.highestBidder, _tokenId);
 
         } else {
-            safeTransferFrom(address(this), msg.sender, _tokenId);
+            nftAddress.safeTransferFrom(address(this), msg.sender, _tokenId);
         }
 
     }
