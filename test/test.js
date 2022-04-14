@@ -1,19 +1,56 @@
-const { expect } = require("chai");
-const { ethers } = require("hardhat");
+const { ethers } = require('hardhat');
+const { expect } = require('chai');
 
-describe("Greeter", function () {
-  it("Should return the new greeting once it's changed", async function () {
-    const Greeter = await ethers.getContractFactory("Greeter");
-    const greeter = await Greeter.deploy("Hello, world!");
-    await greeter.deployed();
+describe("Naksh Marketplace", () => {
 
-    expect(await greeter.greet()).to.equal("Hello, world!");
+  let owner;
+  let org;
+  let admin;
+  let addr1;
+  let addr2;
+  let addr3;
+  let creator;
+  let Naksh;
+  let naksh;
 
-    const setGreetingTx = await greeter.setGreeting("Hola, mundo!");
+  beforeEach(async() => {
+    [owner, org, admin, addr1, addr2, addr3, creator] = await ethers.getSigners();
+    Naksh = await ethers.getContractFactory("NakshNFTMarketplace");
+    naksh = await Naksh.deploy("Naksh", "nk", org.address, admin.address);
 
-    // wait until the transaction is mined
-    await setGreetingTx.wait();
-
-    expect(await greeter.greet()).to.equal("Hola, mundo!");
+    await naksh.deployed();
   });
+
+  describe("Admin minting", () => {
+    it("Should mint by admin", async() => {
+      await expect(naksh.connect(addr1).mintByAdmin(creator.address, "tokenuri", "title", "desc", "artist")).to.be.reverted;
+      expect(await naksh.totalSupply()).to.equal(0);
+
+      expect(await naksh.connect(admin).mintByAdmin(creator.address, "tokenuri", "title", "desc", "artist"));
+      expect(await naksh.totalSupply()).to.equal(1);
+
+    });
+  });
+
+  describe("Put on sale", ()=> {
+    it("Should put on sale", async() => {
+      expect(await naksh.connect(admin).mintByAdmin(creator.address, "tokenuri", "title", "desc", "artist"));
+      await naksh.connect(creator).setSale(1, 1);
+      expect(await naksh.getSalePrice(1)).to.equal(1);
+    });
+  });
+
+  describe("", () => {
+    it("Should", async() => {
+
+    });
+  });
+
+ describe("", () => {
+    it("Should", async() => {
+
+    });
+  });
+
+
 });

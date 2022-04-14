@@ -27,13 +27,13 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 1000,
+        runs: 200,
       },
     },
   },
   networks: {
-    ropsten: {
-      url: process.env.ROPSTEN_URL || "",
+    matic: {
+      url: process.env.MATIC_URL || "",
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },

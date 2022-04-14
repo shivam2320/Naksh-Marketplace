@@ -17,7 +17,6 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 contract NakshNFTMarketplace is ERC721URIStorage {
 
     using SafeMath for uint256;
-    mapping(uint256 => uint256) private salePrice;
     mapping(address => bool) public creatorWhitelist;
     mapping(uint256 => address) private tokenOwner;
     mapping(uint256 => address) private tokenCreator;
@@ -25,6 +24,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
     //This is to determine the platform royalty for the first sale made by the creator
     mapping(uint => bool) private tokenFirstSale;
     mapping(uint => NFTAuction) public auctionData;
+    mapping(uint => NFTData) public nftData;
     mapping(address => uint) public bids;
 
     event SalePriceSet(uint256 indexed _tokenId, uint256 indexed _price);
@@ -63,10 +63,14 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         string description;
         string artistName;
         address creator;
+        bool isOnSale;
+        uint saleprice;
         minter mintedBy;
     }
 
     NFTData[] mintedNfts;
+
+    NFTData[] getOnSaleNFTs;
 
     struct NFTAuction {
         uint startTime;
@@ -229,8 +233,9 @@ contract NakshNFTMarketplace is ERC721URIStorage {
     * @notice Only token owner is allowed to change the price of a token
     */
     function changePrice(uint256 _tokenId, uint256 price) public onlyOwnerOf(_tokenId) {
+        require(nftData[_tokenId].isOnSale == true, "NFT is not on sale");
         require(price > 0, "changePrice: Price cannot be changed to less than 0");
-        salePrice[_tokenId] = price;
+        nftData[_tokenId].saleprice = price;
     }
 
     /**
@@ -258,7 +263,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
 
         tokenCreator[tokenId] = msg.sender;
         
-        NFTData memory nftNew = NFTData(tokenId, title, description, artistName, msg.sender, minter.Artist);
+        NFTData memory nftNew = NFTData(tokenId, title, description, artistName, msg.sender, false, 0, minter.Artist);
         mintedNfts.push(nftNew);
         
         creatorTokens[msg.sender].push(tokenId);
@@ -277,13 +282,13 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         uint256 tokenId = _tokenIds.current();
         tokenOwner[tokenId] = _creator;
 
-       
         _mint(_creator, tokenId);
         _setTokenURI(tokenId, _tokenURI);
 
         tokenCreator[tokenId] = _creator;
         
-        NFTData memory nftNew = NFTData(tokenId, title, description, artistName, _creator, minter.Admin);
+        NFTData memory nftNew = NFTData(tokenId, title, description, artistName, _creator, false, 0, minter.Admin);
+        nftData[tokenId] = nftNew;
         mintedNfts.push(nftNew);
         
         creatorTokens[_creator].push(tokenId);
@@ -297,11 +302,19 @@ contract NakshNFTMarketplace is ERC721URIStorage {
     * once the buyer wants to buy an NFT.
     */
     function setSale(uint256 _tokenId, uint256 price) public virtual onlyOwnerOf(_tokenId) {
+        require(nftData[_tokenId].isOnSale == false, "NFT is already on sale");
         address tOwner = ownerOf(_tokenId);
         require(tOwner != address(0), "setSale: nonexistent token");
-        salePrice[_tokenId] = price;
+        
+        nftData[_tokenId].isOnSale = true;
+        nftData[_tokenId].saleprice = price;
+        getOnSaleNFTs.push(nftData[_tokenId]);
         approve(address(this), _tokenId);
         emit SalePriceSet(_tokenId, price);
+    }
+
+    function getNFTonSale() public view returns (NFTData[] memory){
+        return getOnSaleNFTs;
     }
 
     /**
@@ -313,7 +326,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
     {
         ERC721 nftAddress = ERC721(_nftAddress);
 
-        uint256 price = salePrice[tokenId];
+        uint256 price = nftData[tokenId].saleprice;
         uint256 sellerFees = getSellerFee();
         uint256 creatorRoyalty = creatorFee;
         uint256 platformFees = orgFee;
@@ -326,7 +339,8 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         address tOwner = nftAddress.ownerOf(tokenId);
 
         nftAddress.safeTransferFrom(tOwner, msg.sender, tokenId);
-        salePrice[tokenId] = 0;
+        nftData[tokenId].isOnSale = false;
+        nftData[tokenId].saleprice = 0;
 
         if(tokenFirstSale[tokenId] == false) {
             /* Platform takes 5% on each artist's first sale
@@ -400,7 +414,8 @@ contract NakshNFTMarketplace is ERC721URIStorage {
     * This is a getter function to get the current price of an NFT.
     */
     function getSalePrice(uint256 tokenId) public view returns (uint256) {
-        return salePrice[tokenId];
+        require(nftData[tokenId].isOnSale == true, "NFT is not on Sale");
+        return nftData[tokenId].saleprice;
     }
 
      /**
@@ -447,7 +462,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
 
         tokenCreator[tokenId] = msg.sender;
         
-        NFTData memory nftNew = NFTData(tokenId, title[i], description[i], artistName[i], msg.sender, minter.Artist);
+        NFTData memory nftNew = NFTData(tokenId, title[i], description[i], artistName[i], msg.sender, false, 0, minter.Artist);
         mintedNfts.push(nftNew);
         
         creatorTokens[msg.sender].push(tokenId);
@@ -482,7 +497,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
 
         tokenCreator[tokenId] = _creator[i];
         
-        NFTData memory nftNew = NFTData(tokenId, title[i], description[i], artistName[i], _creator[i], minter.Admin);
+        NFTData memory nftNew = NFTData(tokenId, title[i], description[i], artistName[i], _creator[i], false, 0, minter.Admin);
         mintedNfts.push(nftNew);
         
         creatorTokens[_creator[i]].push(tokenId);
