@@ -37,20 +37,22 @@ describe("Naksh Marketplace", () => {
       expect(await naksh.connect(admin).mintByAdmin(creator.address, "tokenuri", "title", "desc", "artist"));
       await naksh.connect(creator).setSale(1, 1);
       expect(await naksh.getSalePrice(1)).to.equal(1);
+
+      console.log(await naksh.getNFTonSale());
     });
   });
 
-  describe("", () => {
-    it("Should", async() => {
+//   describe("", () => {
+//     it("Should", async() => {
 
-    });
-  });
+//     });
+//   });
 
- describe("", () => {
-    it("Should", async() => {
+//  describe("", () => {
+//     it("Should", async() => {
 
-    });
-  });
+//     });
+//   });
 
 
 });

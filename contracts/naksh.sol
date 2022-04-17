@@ -57,8 +57,16 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         Artist
     }
 
+    struct artistDetails {
+        address artistAddress;
+        string imageUrl;
+    }
+
+    artistDetails[] artistData;
+
     struct NFTData {
         uint tokenId;
+        string tokenUri;
         string title;
         string description;
         string artistName;
@@ -173,6 +181,15 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         Naksh_org = payable(_newOrg);
     }
 
+    function createArtist(address _artist, string memory _image) public onlyOwner returns (bool) {
+        require(_artist != address(0), "Artist is address(0)");
+        artistDetails memory artist = artistDetails(_artist, _image);
+        artistData.push(artist);
+        creatorWhitelist[_artist] = true;
+
+        return true;
+    }
+
     /**
     * @dev This function is used to get the seller percentage. 
     * This refers to the amount of money that would be distributed to the seller 
@@ -263,7 +280,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
 
         tokenCreator[tokenId] = msg.sender;
         
-        NFTData memory nftNew = NFTData(tokenId, title, description, artistName, msg.sender, false, 0, minter.Artist);
+        NFTData memory nftNew = NFTData(tokenId, _tokenURI, title, description, artistName, msg.sender, false, 0, minter.Artist);
         mintedNfts.push(nftNew);
         
         creatorTokens[msg.sender].push(tokenId);
@@ -287,7 +304,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
 
         tokenCreator[tokenId] = _creator;
         
-        NFTData memory nftNew = NFTData(tokenId, title, description, artistName, _creator, false, 0, minter.Admin);
+        NFTData memory nftNew = NFTData(tokenId, _tokenURI, title, description, artistName, _creator, false, 0, minter.Admin);
         nftData[tokenId] = nftNew;
         mintedNfts.push(nftNew);
         
@@ -462,7 +479,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
 
         tokenCreator[tokenId] = msg.sender;
         
-        NFTData memory nftNew = NFTData(tokenId, title[i], description[i], artistName[i], msg.sender, false, 0, minter.Artist);
+        NFTData memory nftNew = NFTData(tokenId, _tokenURI[i], title[i], description[i], artistName[i], msg.sender, false, 0, minter.Artist);
         mintedNfts.push(nftNew);
         
         creatorTokens[msg.sender].push(tokenId);
@@ -497,7 +514,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
 
         tokenCreator[tokenId] = _creator[i];
         
-        NFTData memory nftNew = NFTData(tokenId, title[i], description[i], artistName[i], _creator[i], false, 0, minter.Admin);
+        NFTData memory nftNew = NFTData(tokenId, _tokenURI[i], title[i], description[i], artistName[i], _creator[i], false, 0, minter.Admin);
         mintedNfts.push(nftNew);
         
         creatorTokens[_creator[i]].push(tokenId);
