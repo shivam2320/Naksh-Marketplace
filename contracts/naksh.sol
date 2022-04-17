@@ -10,6 +10,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/utils/Base64.sol";
 
 /* 
 * This is the Naksh Marketplace contract for Minting NFTs and Direct Sale + Auction.
@@ -25,6 +26,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
     mapping(uint => bool) private tokenFirstSale;
     mapping(uint => NFTAuction) public auctionData;
     mapping(uint => NFTData) public nftData;
+    mapping(address => artistDetails) artistData;
     mapping(address => uint) public bids;
 
     event SalePriceSet(uint256 indexed _tokenId, uint256 indexed _price);
@@ -58,11 +60,10 @@ contract NakshNFTMarketplace is ERC721URIStorage {
     }
 
     struct artistDetails {
+        string name;
         address artistAddress;
         string imageUrl;
     }
-
-    artistDetails[] artistData;
 
     struct NFTData {
         uint tokenId;
@@ -70,6 +71,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         string title;
         string description;
         string artistName;
+        string artistImg;
         address creator;
         bool isOnSale;
         uint saleprice;
@@ -181,13 +183,19 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         Naksh_org = payable(_newOrg);
     }
 
-    function createArtist(address _artist, string memory _image) public onlyOwner returns (bool) {
+    function createArtist(string memory _name, address _artist, string memory _image) public onlyOwner returns (bool) {
         require(_artist != address(0), "Artist is address(0)");
-        artistDetails memory artist = artistDetails(_artist, _image);
-        artistData.push(artist);
+        artistDetails memory artist = artistDetails(_name, _artist, _image);
+        artistData[_artist] = artist;
         creatorWhitelist[_artist] = true;
 
         return true;
+    }
+
+    function fetchArtist(address _artist) public view returns (artistDetails memory) {
+        require(_artist != address(0), "Artist is address(0)");
+        require(creatorWhitelist[_artist] == true, "Given address is not artist");
+        return artistData[_artist];
     }
 
     /**
@@ -274,13 +282,26 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         uint256 tokenId = _tokenIds.current();
         tokenOwner[tokenId] = msg.sender;
 
+        string memory json = Base64.encode(
+            bytes(
+                string(
+                    abi.encodePacked(
+                        '{"title": "',title ,'", "description": "',description ,'", "image": "',_tokenURI ,'", "artist name": "',artistName ,'"}'
+                    )
+                )
+            )
+        );
+
+        string memory finalTokenUri = string(
+            abi.encodePacked("data:application/json;base64,", json)
+        );
        
         _mint(msg.sender, tokenId);
-        _setTokenURI(tokenId, _tokenURI);
+        _setTokenURI(tokenId, finalTokenUri);
 
         tokenCreator[tokenId] = msg.sender;
         
-        NFTData memory nftNew = NFTData(tokenId, _tokenURI, title, description, artistName, msg.sender, false, 0, minter.Artist);
+        NFTData memory nftNew = NFTData(tokenId, _tokenURI, title, description, artistName, artistData[msg.sender].imageUrl, msg.sender, false, 0, minter.Artist);
         mintedNfts.push(nftNew);
         
         creatorTokens[msg.sender].push(tokenId);
@@ -299,12 +320,26 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         uint256 tokenId = _tokenIds.current();
         tokenOwner[tokenId] = _creator;
 
+        string memory json = Base64.encode(
+            bytes(
+                string(
+                    abi.encodePacked(
+                        '{"title": "',title ,'", "description": "',description ,'", "image": "',_tokenURI ,'", "artist name": "',artistName ,'"}'
+                    )
+                )
+            )
+        );
+
+        string memory finalTokenUri = string(
+            abi.encodePacked("data:application/json;base64,", json)
+        );
+
         _mint(_creator, tokenId);
-        _setTokenURI(tokenId, _tokenURI);
+        _setTokenURI(tokenId, finalTokenUri);
 
         tokenCreator[tokenId] = _creator;
         
-        NFTData memory nftNew = NFTData(tokenId, _tokenURI, title, description, artistName, _creator, false, 0, minter.Admin);
+        NFTData memory nftNew = NFTData(tokenId, _tokenURI, title, description, artistName, artistData[msg.sender].imageUrl, _creator, false, 0, minter.Admin);
         nftData[tokenId] = nftNew;
         mintedNfts.push(nftNew);
         
@@ -460,7 +495,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
     *This function allows to bulk mint NFTs
     */
     function bulkMintByArtist(string[] memory _tokenURI, string[] memory title,
-    string[] memory description, string[] memory artistName) public virtual onlyArtist returns (uint256[] memory _tokenId) {
+    string[] memory description, string memory artistName) public virtual onlyArtist returns (uint256[] memory _tokenId) {
         
         uint256[] memory tokenIds;
 
@@ -473,13 +508,27 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         tokenOwner[tokenId] = msg.sender;
         
         tokenIds[i] = tokenId;
+
+        string memory json = Base64.encode(
+            bytes(
+                string(
+                    abi.encodePacked(
+                        '{"title": "',title[i] ,'", "description": "',description[i] ,'", "image": "',_tokenURI[i] ,'", "artist name": "',artistName ,'"}'
+                    )
+                )
+            )
+        );
+
+        string memory finalTokenUri = string(
+            abi.encodePacked("data:application/json;base64,", json)
+        );
    
         _mint(msg.sender, tokenId);
-        _setTokenURI(tokenId, _tokenURI[i]);
+        _setTokenURI(tokenId, finalTokenUri);
 
         tokenCreator[tokenId] = msg.sender;
         
-        NFTData memory nftNew = NFTData(tokenId, _tokenURI[i], title[i], description[i], artistName[i], msg.sender, false, 0, minter.Artist);
+        NFTData memory nftNew = NFTData(tokenId, _tokenURI[i], title[i], description[i], artistName, artistData[msg.sender].imageUrl, msg.sender, false, 0, minter.Artist);
         mintedNfts.push(nftNew);
         
         creatorTokens[msg.sender].push(tokenId);
@@ -508,13 +557,27 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         tokenOwner[tokenId] = _creator[i];
         
         tokenIds[i] = tokenId;
+
+        string memory json = Base64.encode(
+            bytes(
+                string(
+                    abi.encodePacked(
+                        '{"title": "',title[i] ,'", "description": "',description[i] ,'", "image": "',_tokenURI[i] ,'", "artist name": "',artistName[i] ,'"}'
+                    )
+                )
+            )
+        );
+
+        string memory finalTokenUri = string(
+            abi.encodePacked("data:application/json;base64,", json)
+        );
    
         _mint(_creator[i], tokenId);
-        _setTokenURI(tokenId, _tokenURI[i]);
+        _setTokenURI(tokenId, finalTokenUri);
 
         tokenCreator[tokenId] = _creator[i];
         
-        NFTData memory nftNew = NFTData(tokenId, _tokenURI[i], title[i], description[i], artistName[i], _creator[i], false, 0, minter.Admin);
+        NFTData memory nftNew = NFTData(tokenId, _tokenURI[i], title[i], description[i], artistName[i], artistData[msg.sender].imageUrl, _creator[i], false, 0, minter.Admin);
         mintedNfts.push(nftNew);
         
         creatorTokens[_creator[i]].push(tokenId);
