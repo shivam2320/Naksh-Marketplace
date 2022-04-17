@@ -42,17 +42,25 @@ describe("Naksh Marketplace", () => {
     });
   });
 
-//   describe("", () => {
-//     it("Should", async() => {
+  describe("Buy NFT on sale", () => {
+    it("Should", async() => {
+      await naksh.connect(admin).mintByAdmin(creator.address, "tokenuri", "title", "desc", "artist");
+      await naksh.connect(creator).setSale(1, 1);
+      await naksh.connect(addr1).buyTokenOnSale(1, naksh.address, {value : ethers.utils.parseEther("1")});
 
-//     });
-//   });
+    });
+  });
 
-//  describe("", () => {
-//     it("Should", async() => {
-
-//     });
-//   });
+  describe("Bulk Mint", () => {
+    it("Should", async() => {
+      await naksh.connect(admin).bulkMintByAdmin([creator.address, addr1.address], ["uri1", "uri2"], ["title1", "title2"], ["desc1", "desc2"], ["name1", "name2"]);
+      //await naksh.connect(admin).bulkMintByArtist([creator.address, addr1.address], ["uri1", "uri2"], ["title1", "title2"], ["desc1", "desc2"], ["name1", "name2"]);
+    
+    });
+  });
 
 
 });
+
+
+//creator address(0) bulkmintbyadmin

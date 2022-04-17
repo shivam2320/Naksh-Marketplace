@@ -385,7 +385,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
 
         require(price != 0, "buyToken: price equals 0");
         require(
-            msg.value == price,
+            msg.value >= price,
             "buyToken: price doesn't equal salePrice[tokenId]"
         );
         address tOwner = nftAddress.ownerOf(tokenId);
@@ -506,8 +506,6 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         _tokenIds.increment();
         uint256 tokenId = _tokenIds.current();
         tokenOwner[tokenId] = msg.sender;
-        
-        tokenIds[i] = tokenId;
 
         string memory json = Base64.encode(
             bytes(
@@ -533,9 +531,9 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         
         creatorTokens[msg.sender].push(tokenId);
 
-        unchecked { ++i; }
-
         emit Mint(msg.sender, tokenId, _tokenURI[i]);
+
+        unchecked { ++i; }
         }
         return tokenIds;
     }
@@ -556,7 +554,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         uint256 tokenId = _tokenIds.current();
         tokenOwner[tokenId] = _creator[i];
         
-        tokenIds[i] = tokenId;
+        //tokenIds[i] = tokenId;
 
         string memory json = Base64.encode(
             bytes(
@@ -582,9 +580,9 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         
         creatorTokens[_creator[i]].push(tokenId);
 
-        unchecked { ++i; }
-
         emit Mint(_creator[i],tokenId, _tokenURI[i]);
+
+        unchecked { ++i; }
         }
         return tokenIds;
     }
