@@ -45,7 +45,7 @@ describe("Naksh Marketplace", () => {
     it("Should put on sale", async() => {
       expect(await naksh.connect(admin).mintByAdmin(creator.address, "tokenuri", "title", "desc", "artist"));
       await naksh.connect(creator).setSale(1, 1);
-      expect(await naksh.isTokenFirstSale(1)).to.expect(true);
+      expect(await naksh.isTokenFirstSale(1)).to.equal(false);
       expect(await naksh.getSalePrice(1)).to.equal(1);
 
       console.log(await naksh.getNFTonSale());
@@ -57,6 +57,7 @@ describe("Naksh Marketplace", () => {
       await naksh.connect(admin).mintByAdmin(creator.address, "tokenuri", "title", "desc", "artist");
       await naksh.connect(creator).setSale(1, 1);
       await naksh.connect(addr1).buyTokenOnSale(1, naksh.address, {value : ethers.utils.parseEther("1")});
+      expect(await naksh.isTokenFirstSale(1)).to.equal(true);
 
     });
   });
@@ -69,21 +70,22 @@ describe("Naksh Marketplace", () => {
 
   describe("Bulk Mint by Artist", () => {
     it("Should", async() => {
-
+      await naksh.createArtist("name", creator.address, "img");
+      await naksh.connect(creator).bulkMintByArtist(["uri1", "uri2"], ["title1", "title2"], ["desc1", "desc2"], "name2");
     });
   });
 
   describe("Auction", () => {
-    it("Should start auction", async() => {
+    it("Should start and end auction", async() => {
+      await naksh.createArtist("name", creator.address, "img");
+      await naksh.connect(creator).mintByArtist("uri", "title", "desc", "name");
+      await naksh.connect(creator).approve(naksh.address, 1);
+      await naksh.connect(creator).startAuction(1, 1, 60);
 
-    });
+      await naksh.connect(addr2).bid(1, {value: ethers.utils.parseEther('1')});
+      await naksh.connect(addr3).bid(1, {value: ethers.utils.parseEther('2')});
 
-    it("Should bid", async() => {
-
-    });
-
-    it("Should end auction", async() => {
-
+      await expect(naksh.connect(creator).endAuction(1, naksh.address)).to.be.reverted;
     });
   });
 
