@@ -36,9 +36,9 @@ contract NakshNFTMarketplace is ERC721URIStorage {
     event OwnershipGranted(address indexed newOwner);
     event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
     event Mint(address indexed creator,uint indexed tokenId, string indexed tokenURI);
-    event startedAuction(uint startTime, uint endTime, uint indexed tokenId, address indexed owner, uint indexed price);
-    event endedAuction(uint indexed _tokenId, address indexed _buyer, uint indexed highestBID);
-    event bidding(uint indexed _tokenId, address indexed _bidder, uint indexed _amount);
+    event StartedAuction(uint startTime, uint endTime, uint indexed tokenId, address indexed owner, uint indexed price);
+    event EndedAuction(uint indexed _tokenId, address indexed _buyer, uint indexed highestBID);
+    event Bidding(uint indexed _tokenId, address indexed _bidder, uint indexed _amount);
 
     uint constant FLOAT_HANDLER_TEN_4 = 10000;
 
@@ -339,7 +339,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
 
         tokenCreator[tokenId] = _creator;
         
-        NFTData memory nftNew = NFTData(tokenId, _tokenURI, title, description, artistName, artistData[msg.sender].imageUrl, _creator, false, 0, minter.Admin);
+        NFTData memory nftNew = NFTData(tokenId, _tokenURI, title, description, artistName, artistData[msg.sender].imageUrl, admin, false, 0, minter.Admin);
         nftData[tokenId] = nftNew;
         mintedNfts.push(nftNew);
         
@@ -575,7 +575,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
 
         tokenCreator[tokenId] = _creator[i];
         
-        NFTData memory nftNew = NFTData(tokenId, _tokenURI[i], title[i], description[i], artistName[i], artistData[msg.sender].imageUrl, _creator[i], false, 0, minter.Admin);
+        NFTData memory nftNew = NFTData(tokenId, _tokenURI[i], title[i], description[i], artistName[i], artistData[msg.sender].imageUrl, admin, false, 0, minter.Admin);
         mintedNfts.push(nftNew);
         
         creatorTokens[_creator[i]].push(tokenId);
@@ -598,7 +598,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         auctionData[_tokenId] = nftAuction;
         auctionedNFTs.push(nftAuction);
 
-        emit startedAuction(_startTime, _endTime, _tokenId, msg.sender, _price);
+        emit StartedAuction(_startTime, _endTime, _tokenId, msg.sender, _price);
 
         return true;
     }
@@ -621,7 +621,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         auctionData[_tokenId].highestBid = msg.value;
         }
         
-        emit bidding(_tokenId, msg.sender, msg.value);
+        emit Bidding(_tokenId, msg.sender, msg.value);
         return true;
     }
 
@@ -673,7 +673,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
             nftAddress.safeTransferFrom(address(this), msg.sender, _tokenId);
         }
 
-        emit endedAuction(_tokenId, nftAuction.highestBidder, nftAuction.highestBid);
+        emit EndedAuction(_tokenId, nftAuction.highestBidder, nftAuction.highestBid);
 
     }
 
