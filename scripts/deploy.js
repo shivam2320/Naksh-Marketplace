@@ -15,7 +15,12 @@ async function main() {
 
   // We get the contract to deploy
   const Naksh = await hre.ethers.getContractFactory("NakshNFTMarketplace");
-  const naksh = await Naksh.deploy("Naksh", "nksh", "0x4e7f624C9f2dbc3bcf97D03E765142Dd46fe1C46", "0x4e7f624C9f2dbc3bcf97D03E765142Dd46fe1C46");
+  const naksh = await Naksh.deploy(
+    "Naksh",
+    "nksh",
+    "0xd31Efa8F0f53e7EB8187694a12B3413A63f6b284",
+    "0xd31Efa8F0f53e7EB8187694a12B3413A63f6b284"
+  );
 
   await naksh.deployed();
 

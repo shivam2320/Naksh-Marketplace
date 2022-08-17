@@ -25,6 +25,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
     //This is to determine the platform royalty for the first sale made by the creator
     mapping(uint => bool) private tokenFirstSale;
     mapping(uint => NFTAuction) public auctionData;
+    mapping(uint => bidHistory[]) public prevBidData;
     mapping(uint => NFTData) public nftData;
     mapping(address => artistDetails) artistData;
     mapping(address => uint) public bids;
@@ -93,6 +94,14 @@ contract NakshNFTMarketplace is ERC721URIStorage {
     }
 
     NFTAuction[] auctionedNFTs;
+
+    struct bidHistory {
+        address bidder;
+        uint amount;
+        uint timestamp;
+    }
+
+    bidHistory[] previousBids; 
 
     /**
     * Modifier to allow only minters to mint
@@ -610,19 +619,28 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         require(auctionData[_tokenId].highestBid <= msg.value, "Pay more than highest bid");
 
         if(auctionData[_tokenId].highestBidder != address(0)) {
+            bidHistory memory addBid = bidHistory( msg.sender, msg.value, block.timestamp);
+            prevBidData[_tokenId].push(addBid);
             uint bal = bids[auctionData[_tokenId].highestBidder];
             bids[auctionData[_tokenId].highestBidder] = 0;
             payable(auctionData[_tokenId].highestBidder).transfer(bal);
             auctionData[_tokenId].highestBid = msg.value;
             bids[msg.sender] = auctionData[_tokenId].highestBid;
             auctionData[_tokenId].highestBidder = msg.sender;
+            
         } else {
         auctionData[_tokenId].highestBidder = msg.sender;
         auctionData[_tokenId].highestBid = msg.value;
+        bidHistory memory addBid = bidHistory(msg.sender, msg.value, block.timestamp);
+        prevBidData[_tokenId].push(addBid);
         }
         
         emit Bidding(_tokenId, msg.sender, msg.value);
         return true;
+    }
+
+    function getBidHistory(uint _tokenId) external view returns (bidHistory[] memory) {
+        return prevBidData[_tokenId];
     }
 
 
