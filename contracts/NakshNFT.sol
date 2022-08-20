@@ -1,11 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-
-//Naksh NFT -> /\/\/\/\Done/\/\/\/\
-//Naksh Auction -> royalty split
-//Naksh Marketplace -> /\/\/\/\Done/\/\/\/\
-//Naksh Factory -> /\/\/\/\Done/\/\/\/\
-
-pragma solidity ^0.8.0;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.10;
 
 /**  
 * @title An NFT Marketplace contract for Naksh NFTs
@@ -17,54 +11,43 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
+import "./Structs.sol";
 
 /* 
 * This is the Naksh Marketplace contract for Minting NFTs and Direct Sale + Auction.
 */
-contract NakshNFTMarketplace is ERC721URIStorage {
+contract NakshNFT is ERC721URIStorage {
 
     using SafeMath for uint256;
     mapping(address => bool) public creatorWhitelist;
     mapping(uint256 => address) private tokenOwner;
     mapping(uint256 => address) private tokenCreator;
     mapping(address => uint[]) private creatorTokens;
-    //This is to determine the platform royalty for the first sale made by the creator
-    mapping(uint => bool) private tokenFirstSale;
-    mapping(uint => NFTAuction) public auctionData;
-    mapping(uint => bidHistory[]) public prevBidData;
+    
     mapping(uint => NFTData) public nftData;
     mapping(address => artistDetails) artistData;
-    mapping(address => uint) public bids;
 
-    event SalePriceSet(uint256 indexed _tokenId, uint256 indexed _price);
-    event Sold(address indexed _buyer, address indexed _seller, uint256 _amount, uint256 indexed _tokenId);
     event WhitelistCreator(address indexed _creator);
     event DelistCreator(address indexed _creator);
     event OwnershipGranted(address indexed newOwner);
     event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
     event Mint(address indexed creator,uint indexed tokenId, string indexed tokenURI);
-    event StartedAuction(uint startTime, uint endTime, uint indexed tokenId, address indexed owner, uint indexed price);
-    event EndedAuction(uint indexed _tokenId, address indexed _buyer, uint indexed highestBID);
-    event Bidding(uint indexed _tokenId, address indexed _bidder, uint indexed _amount);
 
     uint constant FLOAT_HANDLER_TEN_4 = 10000;
 
-    address owner;
+    address public owner;
     address _grantedOwner;
-    address admin;
-    uint256 sellerFee;
-    uint256 orgFee;
-    uint256 creatorFee;
-    uint256 sellerFeeInitial;
-    uint256 orgFeeInitial;
-    address payable Naksh_org;
+    address public admin;
+    uint256 public sellerFee;
+    uint256 public orgFee;
+    uint256 public creatorFee;
+    address payable[] public creators;
+    uint256 public TotalSplits = creators.length;
+    uint256 public sellerFeeInitial;
+    uint256 public orgFeeInitial;
+    address payable public Naksh_org;
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
-
-    enum minter{
-        Admin,
-        Artist
-    }
 
     struct artistDetails {
         string name;
@@ -72,56 +55,13 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         string imageUrl;
     }
 
-    struct NFTData {
-        uint tokenId;
-        string tokenUri;
-        string title;
-        string description;
-        string artistName;
-        string artistImg;
-        address creator;
-        bool isOnSale;
-        uint saleprice;
-        minter mintedBy;
-    }
-
     NFTData[] mintedNfts;
-
-    NFTData[] getOnSaleNFTs;
-
-    struct NFTAuction {
-        uint startTime;
-        uint endTime;
-        uint tokenId;
-        address owner;
-        uint price;
-        uint highestBid;
-        address highestBidder;
-    }
-
-    NFTAuction[] auctionedNFTs;
-
-    struct bidHistory {
-        address bidder;
-        uint amount;
-        uint timestamp;
-    }
-
-    bidHistory[] previousBids; 
 
     /**
     * Modifier to allow only minters to mint
     */
     modifier onlyArtist() virtual {
         require(creatorWhitelist[msg.sender] == true);
-        _;
-    }
-
-    /**
-    * Modifier to allow only owners of a token to perform certain actions 
-    */
-    modifier onlyOwnerOf(uint256 _tokenId) {
-        require(ownerOf(_tokenId) == msg.sender);
         _;
     }
 
@@ -144,7 +84,9 @@ contract NakshNFTMarketplace is ERC721URIStorage {
     constructor(string memory _name, 
         string memory _symbol,
         address payable org,
-        address payable _admin
+        address payable _admin,
+        uint16 _creatorFee,
+        address payable[] memory _creators
         )
         ERC721(_name, _symbol)
     {
@@ -153,7 +95,8 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         Naksh_org = org;
         //Multiply all the three % variables by 100, to kepe it uniform
         orgFee = 500;
-        creatorFee = 1000;
+        creatorFee = _creatorFee;
+        creators = _creators;
         sellerFee = 10000 - orgFee - creatorFee;
         // Fees for first sale only
         orgFeeInitial = 500;
@@ -213,19 +156,6 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         return artistData[_artist];
     }
 
-    /**
-    * @dev This function is used to get the seller percentage. 
-    * This refers to the amount of money that would be distributed to the seller 
-    * after the reduction of royalty and platform fees.
-    * The values are multipleied by 100, in order to work easily 
-    * with floating point percentages.
-    */
-    function getSellerFee() public view returns (uint256) {
-        //Returning % multiplied by 100 to keep it uniform across contract
-        return sellerFee;
-    }
-
-
      /** @dev Calculate the royalty distribution for organisation/platform and the
     * creator/artist.
     * Each of the organisation, creator royalty and the parent organsation fees
@@ -267,23 +197,20 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         return (orgFee, creatorFee, orgFeeInitial, sellerFeeInitial);
     }
 
-
     /**
-    * This function is used to change the price of a token
-    * @notice Only token owner is allowed to change the price of a token
+    * @dev This function is used to get the seller percentage. 
+    * This refers to the amount of money that would be distributed to the seller 
+    * after the reduction of royalty and platform fees.
+    * The values are multipleied by 100, in order to work easily 
+    * with floating point percentages.
     */
-    function changePrice(uint256 _tokenId, uint256 price) public onlyOwnerOf(_tokenId) {
-        require(nftData[_tokenId].isOnSale == true, "NFT is not on sale");
-        require(price > 0, "changePrice: Price cannot be changed to less than 0");
-        nftData[_tokenId].saleprice = price;
+    function getSellerFee() public view returns (uint256) {
+        //Returning % multiplied by 100 to keep it uniform across contract
+        return sellerFee;
     }
 
-    /**
-    * This function is used to check if it is the first sale of a token
-    * on the Naksh marketplace.
-    */
-    function isTokenFirstSale(uint tokenId) external view returns(bool){
-        return tokenFirstSale[tokenId];
+    function getNFTData(uint _tokenId) public view returns (NFTData memory) {
+        return nftData[_tokenId];
     }
 
     /**
@@ -316,7 +243,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
 
         tokenCreator[tokenId] = msg.sender;
         
-        NFTData memory nftNew = NFTData(tokenId, _tokenURI, title, description, artistName, artistData[msg.sender].imageUrl, msg.sender, false, 0, minter.Artist);
+        NFTData memory nftNew = NFTData(tokenId, _tokenURI, title, description, artistName, artistData[msg.sender].imageUrl, msg.sender, minter.Artist);
         mintedNfts.push(nftNew);
         
         creatorTokens[msg.sender].push(tokenId);
@@ -354,7 +281,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
 
         tokenCreator[tokenId] = _creator;
         
-        NFTData memory nftNew = NFTData(tokenId, _tokenURI, title, description, artistName, artistData[msg.sender].imageUrl, admin, false, 0, minter.Admin);
+        NFTData memory nftNew = NFTData(tokenId, _tokenURI, title, description, artistName, artistData[msg.sender].imageUrl, admin, minter.Admin);
         nftData[tokenId] = nftNew;
         mintedNfts.push(nftNew);
         
@@ -363,83 +290,6 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         return tokenId;
     }
     
-    /**
-    * This function is used to set an NFT on sale. 
-    * @dev The sale price set in this function will be used to perform the sale transaction
-    * once the buyer wants to buy an NFT.
-    */
-    function setSale(uint256 _tokenId, uint256 price) public virtual onlyOwnerOf(_tokenId) {
-        require(nftData[_tokenId].isOnSale == false, "NFT is already on sale");
-        address tOwner = ownerOf(_tokenId);
-        require(tOwner != address(0), "setSale: nonexistent token");
-        
-        nftData[_tokenId].isOnSale = true;
-        nftData[_tokenId].saleprice = price;
-        getOnSaleNFTs.push(nftData[_tokenId]);
-        approve(address(this), _tokenId);
-        emit SalePriceSet(_tokenId, price);
-    }
-
-    function getNFTonSale() public view returns (NFTData[] memory){
-        return getOnSaleNFTs;
-    }
-
-    /**
-    * This function is used to buy an NFT which is on sale.
-    */
-    function buyTokenOnSale(uint256 tokenId, address _nftAddress)
-        public
-        payable
-    {
-        ERC721 nftAddress = ERC721(_nftAddress);
-
-        uint256 price = nftData[tokenId].saleprice;
-        uint256 sellerFees = getSellerFee();
-        uint256 creatorRoyalty = creatorFee;
-        uint256 platformFees = orgFee;
-
-        require(price != 0, "buyToken: price equals 0");
-        require(
-            msg.value >= price,
-            "buyToken: price doesn't equal salePrice[tokenId]"
-        );
-        address tOwner = nftAddress.ownerOf(tokenId);
-
-        nftAddress.safeTransferFrom(tOwner, msg.sender, tokenId);
-        nftData[tokenId].isOnSale = false;
-        nftData[tokenId].saleprice = 0;
-
-        if(tokenFirstSale[tokenId] == false) {
-            /* Platform takes 5% on each artist's first sale
-            *  All values are multiplied by 100 to deal with floating points
-            */
-            platformFees = orgFeeInitial;
-            sellerFees = sellerFeeInitial;
-            // No creator royalty/royalties when artist is minting for the first time
-            creatorRoyalty = 0;
-
-            tokenFirstSale[tokenId] = true;
-        }   
-        
-        //Dividing by 100*100 as all values are multiplied by 100
-        uint256 toSeller = (msg.value * sellerFees) / FLOAT_HANDLER_TEN_4;
-        
-        //Dividing by 100*100 as all values are multiplied by 100
-        uint256 toCreator = (msg.value*creatorRoyalty) / FLOAT_HANDLER_TEN_4;
-        uint256 toPlatform = (msg.value*platformFees) / FLOAT_HANDLER_TEN_4;
-        
-        address tokenCreatorAddress = tokenCreator[tokenId];
-        
-        payable(tOwner).transfer(toSeller);
-        if(toCreator != 0) {
-            payable(tokenCreatorAddress).transfer(toCreator);
-        }
-        
-        Naksh_org.transfer(toPlatform);
-
-        
-        emit Sold(msg.sender, tOwner, msg.value, tokenId);
-    }
 
     /**
     * This function is used to return all the tokens created by a specific creator
@@ -475,14 +325,6 @@ contract NakshNFTMarketplace is ERC721URIStorage {
             }
         }
         
-    }
-
-    /**
-    * This is a getter function to get the current price of an NFT.
-    */
-    function getSalePrice(uint256 tokenId) public view returns (uint256) {
-        require(nftData[tokenId].isOnSale == true, "NFT is not on Sale");
-        return nftData[tokenId].saleprice;
     }
 
      /**
@@ -541,7 +383,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
 
         tokenCreator[tokenId] = msg.sender;
         
-        NFTData memory nftNew = NFTData(tokenId, _tokenURI[i], title[i], description[i], artistName, artistData[msg.sender].imageUrl, msg.sender, false, 0, minter.Artist);
+        NFTData memory nftNew = NFTData(tokenId, _tokenURI[i], title[i], description[i], artistName, artistData[msg.sender].imageUrl, msg.sender, minter.Artist);
         mintedNfts.push(nftNew);
         
         creatorTokens[msg.sender].push(tokenId);
@@ -590,7 +432,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
 
         tokenCreator[tokenId] = _creator[i];
         
-        NFTData memory nftNew = NFTData(tokenId, _tokenURI[i], title[i], description[i], artistName[i], artistData[msg.sender].imageUrl, admin, false, 0, minter.Admin);
+        NFTData memory nftNew = NFTData(tokenId, _tokenURI[i], title[i], description[i], artistName[i], artistData[msg.sender].imageUrl, admin, minter.Admin);
         mintedNfts.push(nftNew);
         
         creatorTokens[_creator[i]].push(tokenId);
@@ -600,105 +442,6 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         unchecked { ++i; }
         }
         return tokenIds;
-    }
-
-    function startAuction(uint _tokenId, uint _price, uint _auctionTime) external onlyOwnerOf(_tokenId) returns (bool) {
-        uint _startTime = block.timestamp;
-
-        transferFrom(msg.sender, address(this), _tokenId);
-
-        uint _endTime = block.timestamp + _auctionTime;
-
-        NFTAuction memory nftAuction = NFTAuction(_startTime, _endTime, _tokenId, msg.sender, _price, 0, address(0));
-        auctionData[_tokenId] = nftAuction;
-        auctionedNFTs.push(nftAuction);
-
-        emit StartedAuction(_startTime, _endTime, _tokenId, msg.sender, _price);
-
-        return true;
-    }
-
-    function bid(uint _tokenId) external payable returns (bool) {
-
-        require(auctionData[_tokenId].endTime >= block.timestamp, "Auction has ended");
-        require(auctionData[_tokenId].price <= msg.value, "Pay more than base price");
-        require(auctionData[_tokenId].highestBid <= msg.value, "Pay more than highest bid");
-
-        if(auctionData[_tokenId].highestBidder != address(0)) {
-            bidHistory memory addBid = bidHistory( msg.sender, msg.value, block.timestamp);
-            prevBidData[_tokenId].push(addBid);
-            uint bal = bids[auctionData[_tokenId].highestBidder];
-            bids[auctionData[_tokenId].highestBidder] = 0;
-            payable(auctionData[_tokenId].highestBidder).transfer(bal);
-            auctionData[_tokenId].highestBid = msg.value;
-            bids[msg.sender] = auctionData[_tokenId].highestBid;
-            auctionData[_tokenId].highestBidder = msg.sender;
-            
-        } else {
-        auctionData[_tokenId].highestBidder = msg.sender;
-        auctionData[_tokenId].highestBid = msg.value;
-        bidHistory memory addBid = bidHistory(msg.sender, msg.value, block.timestamp);
-        prevBidData[_tokenId].push(addBid);
-        }
-        
-        emit Bidding(_tokenId, msg.sender, msg.value);
-        return true;
-    }
-
-    function getBidHistory(uint _tokenId) external view returns (bidHistory[] memory) {
-        return prevBidData[_tokenId];
-    }
-
-
-    function endAuction(uint _tokenId, address _nftAddress) external{
-        NFTAuction memory nftAuction = auctionData[_tokenId];
-
-        ERC721 nftAddress = ERC721(_nftAddress);
-
-        require(nftAuction.owner == msg.sender, "Only owner of nft can call this");
-        require(nftAuction.endTime <= block.timestamp, "Auction has not yet ended");
-
-        if (nftAuction.highestBidder != address(0)) {
-            uint256 sellerFees = getSellerFee();
-            uint256 creatorRoyalty = creatorFee;
-            uint256 platformFees = orgFee;
-
-            if(tokenFirstSale[_tokenId] == false) {
-            /* Platform takes 5% on each artist's first sale
-            *  All values are multiplied by 100 to deal with floating points
-            */
-            platformFees = orgFeeInitial;
-            sellerFees = sellerFeeInitial;
-            // No creator royalty/royalties when artist is minting for the first time
-            creatorRoyalty = 0;
-
-            tokenFirstSale[_tokenId] = true;
-            }   
-        
-            //Dividing by 100*100 as all values are multiplied by 100
-            uint256 toSeller = (nftAuction.highestBid * sellerFees) / FLOAT_HANDLER_TEN_4;
-
-            //Dividing by 100*100 as all values are multiplied by 100
-            uint256 toCreator = (nftAuction.highestBid * creatorRoyalty) / FLOAT_HANDLER_TEN_4;
-            uint256 toPlatform = (nftAuction.highestBid * platformFees) / FLOAT_HANDLER_TEN_4;
-        
-            address tokenCreatorAddress = tokenCreator[_tokenId];
-        
-            payable(msg.sender).transfer(toSeller);
-            if(toCreator != 0) {
-                payable(tokenCreatorAddress).transfer(toCreator);
-            }   
-        
-            Naksh_org.transfer(toPlatform);
-
-            nftAddress.safeTransferFrom(address(this), nftAuction.highestBidder, _tokenId);
-
-        } else {
-            nftAddress.safeTransferFrom(address(this), msg.sender, _tokenId);
-        }
-
-        emit EndedAuction(_tokenId, nftAuction.highestBidder, nftAuction.highestBid);
-
     }
 
 }
