@@ -29,8 +29,9 @@ contract NakshAuction {
 
     bidHistory[] previousBids;
 
-    mapping(uint => NFTAuction) public auctionData;
-    mapping(uint => bidHistory[]) public prevBidData;
+    mapping(address => mapping (uint => NFTAuction)) public auctionData;
+
+    mapping(address => mapping (uint => bidHistory[]))  public prevBidData;
     mapping(address => uint) public bids;
 
     event StartedAuction(uint startTime, uint endTime, uint indexed tokenId, address indexed owner, uint indexed price);
@@ -42,7 +43,7 @@ contract NakshAuction {
         _;
     }
 
-        function startAuction(address _nftAddress, uint _tokenId, uint _price, uint _auctionTime) external onlyOwnerOf(_nftAddress, _tokenId) returns (bool) {
+    function startAuction(address _nftAddress, uint _tokenId, uint _price, uint _auctionTime) external onlyOwnerOf(_nftAddress, _tokenId) returns (bool) {
         uint _startTime = block.timestamp;
 
         IERC721(_nftAddress).transferFrom(msg.sender, address(this), _tokenId);
@@ -50,7 +51,7 @@ contract NakshAuction {
         uint _endTime = block.timestamp + _auctionTime;
 
         NFTAuction memory nftAuction = NFTAuction(_startTime, _endTime, _tokenId, msg.sender, _price, 0, address(0));
-        auctionData[_tokenId] = nftAuction;
+        auctionData[_nftAddress][_tokenId] = nftAuction;
         auctionedNFTs.push(nftAuction);
 
         emit StartedAuction(_startTime, _endTime, _tokenId, msg.sender, _price);
@@ -58,40 +59,42 @@ contract NakshAuction {
         return true;
     }
 
-    function bid(uint _tokenId) external payable returns (bool) {
+    function bid(address _nftAddress, uint _tokenId) external payable returns (bool) {
 
-        require(auctionData[_tokenId].endTime >= block.timestamp, "Auction has ended");
-        require(auctionData[_tokenId].price <= msg.value, "Pay more than base price");
-        require(auctionData[_tokenId].highestBid <= msg.value, "Pay more than highest bid");
+        NFTAuction memory nftAuction = auctionData[_nftAddress][_tokenId];
 
-        if(auctionData[_tokenId].highestBidder != address(0)) {
+        require(nftAuction.endTime >= block.timestamp, "Auction has ended");
+        require(nftAuction.price <= msg.value, "Pay more than base price");
+        require(nftAuction.highestBid <= msg.value, "Pay more than highest bid");
+
+        if(nftAuction.highestBidder != address(0)) {
             bidHistory memory addBid = bidHistory( msg.sender, msg.value, block.timestamp);
-            prevBidData[_tokenId].push(addBid);
-            uint bal = bids[auctionData[_tokenId].highestBidder];
-            bids[auctionData[_tokenId].highestBidder] = 0;
-            payable(auctionData[_tokenId].highestBidder).transfer(bal);
-            auctionData[_tokenId].highestBid = msg.value;
-            bids[msg.sender] = auctionData[_tokenId].highestBid;
-            auctionData[_tokenId].highestBidder = msg.sender;
+            prevBidData[_nftAddress][_tokenId].push(addBid);
+            uint bal = bids[nftAuction.highestBidder];
+            bids[nftAuction.highestBidder] = 0;
+            payable(nftAuction.highestBidder).transfer(bal);
+            nftAuction.highestBid = msg.value;
+            bids[msg.sender] = nftAuction.highestBid;
+            nftAuction.highestBidder = msg.sender;
             
         } else {
-        auctionData[_tokenId].highestBidder = msg.sender;
-        auctionData[_tokenId].highestBid = msg.value;
+        nftAuction.highestBidder = msg.sender;
+        nftAuction.highestBid = msg.value;
         bidHistory memory addBid = bidHistory(msg.sender, msg.value, block.timestamp);
-        prevBidData[_tokenId].push(addBid);
+        prevBidData[_nftAddress][_tokenId].push(addBid);
         }
         
         emit Bidding(_tokenId, msg.sender, msg.value);
         return true;
     }
 
-    function getBidHistory(uint _tokenId) external view returns (bidHistory[] memory) {
-        return prevBidData[_tokenId];
+    function getBidHistory(address _nftAddress, uint _tokenId) external view returns (bidHistory[] memory) {
+        return prevBidData[_nftAddress][_tokenId];
     }
 
 
-    function endAuction(uint _tokenId, address _nftAddress) external{
-        NFTAuction memory nftAuction = auctionData[_tokenId];
+    function endAuction(address _nftAddress, uint _tokenId) external{
+        NFTAuction memory nftAuction = auctionData[_nftAddress][_tokenId];
 
         require(nftAuction.owner == msg.sender, "Only owner of nft can call this");
         require(nftAuction.endTime <= block.timestamp, "Auction has not yet ended");
