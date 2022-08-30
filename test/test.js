@@ -45,6 +45,12 @@ describe("Naksh Marketplace", () => {
       console.log(await naksh.fetchArtist(creator.address));
       await naksh.connect(creator).mintByArtist("uri", "title", "desc", "name");
       console.log(await naksh.tokenURI(1));
+
+      await naksh.connect(creator).setSale(1, 1);
+      expect(await naksh.isTokenFirstSale(1)).to.equal(false);
+      expect(await naksh.getSalePrice(1)).to.equal(1);
+
+      console.log(await naksh.getNFTonSale());
     });
   });
 
@@ -53,7 +59,13 @@ describe("Naksh Marketplace", () => {
       expect(
         await naksh
           .connect(admin)
-          .mintByAdmin(creator.address, "tokenuri", "title", "desc", "artist")
+          .mintByAdmin(
+            creator.address,
+            "data:application/json;base64,eyJ0aXRsZSI6ICJ0aXRsZSIsICJkZXNjcmlwdGlvbiI6ICJkZXNjIiwgImltYWdlIjogInVyaSIsICJhcnRpc3QgbmF",
+            "Nakshhhhhh",
+            "some descriptionnnnn",
+            "Artistttt"
+          )
       );
       await naksh.connect(creator).setSale(1, 1);
       expect(await naksh.isTokenFirstSale(1)).to.equal(false);

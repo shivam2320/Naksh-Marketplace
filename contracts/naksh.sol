@@ -317,6 +317,7 @@ contract NakshNFTMarketplace is ERC721URIStorage {
         tokenCreator[tokenId] = msg.sender;
         
         NFTData memory nftNew = NFTData(tokenId, _tokenURI, title, description, artistName, artistData[msg.sender].imageUrl, msg.sender, false, 0, minter.Artist);
+        nftData[tokenId] = nftNew;
         mintedNfts.push(nftNew);
         
         creatorTokens[msg.sender].push(tokenId);

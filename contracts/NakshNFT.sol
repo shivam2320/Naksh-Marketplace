@@ -45,7 +45,6 @@ contract NakshNFT is ERC721URIStorage {
     uint256 public TotalSplits = creators.length;
     uint256 public sellerFeeInitial;
     uint256 public orgFeeInitial;
-    address payable public Naksh_org;
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 
@@ -83,16 +82,15 @@ contract NakshNFT is ERC721URIStorage {
 
     constructor(string memory _name, 
         string memory _symbol,
-        address payable org,
+        address _owner,
         address payable _admin,
         uint16 _creatorFee,
         address payable[] memory _creators
         )
         ERC721(_name, _symbol)
     {
-        owner = msg.sender;
+        owner = _owner;
         admin = _admin;
-        Naksh_org = org;
         //Multiply all the three % variables by 100, to kepe it uniform
         orgFee = 500;
         creatorFee = _creatorFee;
@@ -130,15 +128,6 @@ contract NakshNFT is ERC721URIStorage {
     function grantAdminRights(address newAdmin) public virtual onlyAdmin {
         require(newAdmin != address(0), "New Admin cannot be zero address");
         admin = newAdmin;
-    }
-
-    /**
-    * @dev Organisation address can be updated to another address in case of attack or compromise(`newOrg`)
-    * Can be done only by the contract owner.
-    */
-    function changeOrgAddress(address _newOrg) public onlyOwner {
-        require(_newOrg != address(0), "New organization cannot be zero address");
-        Naksh_org = payable(_newOrg);
     }
 
     function createArtist(string memory _name, address _artist, string memory _image) public onlyOwner returns (bool) {
@@ -244,6 +233,7 @@ contract NakshNFT is ERC721URIStorage {
         tokenCreator[tokenId] = msg.sender;
         
         NFTData memory nftNew = NFTData(tokenId, _tokenURI, title, description, artistName, artistData[msg.sender].imageUrl, msg.sender, minter.Artist);
+        nftData[tokenId] = nftNew;
         mintedNfts.push(nftNew);
         
         creatorTokens[msg.sender].push(tokenId);
@@ -384,6 +374,7 @@ contract NakshNFT is ERC721URIStorage {
         tokenCreator[tokenId] = msg.sender;
         
         NFTData memory nftNew = NFTData(tokenId, _tokenURI[i], title[i], description[i], artistName, artistData[msg.sender].imageUrl, msg.sender, minter.Artist);
+        nftData[tokenId] = nftNew;
         mintedNfts.push(nftNew);
         
         creatorTokens[msg.sender].push(tokenId);
@@ -433,6 +424,7 @@ contract NakshNFT is ERC721URIStorage {
         tokenCreator[tokenId] = _creator[i];
         
         NFTData memory nftNew = NFTData(tokenId, _tokenURI[i], title[i], description[i], artistName[i], artistData[msg.sender].imageUrl, admin, minter.Admin);
+        nftData[tokenId] = nftNew;
         mintedNfts.push(nftNew);
         
         creatorTokens[_creator[i]].push(tokenId);

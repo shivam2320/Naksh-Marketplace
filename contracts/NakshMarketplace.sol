@@ -2,10 +2,13 @@
 pragma solidity ^0.8.10;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./NakshNFT.sol";
 import "./Structs.sol";
 
-contract NakshMarketplace{
+contract NakshMarketplace is Ownable{
+
+    address payable public Naksh_org;
 
     struct SaleData {
         bool isOnSale;
@@ -29,6 +32,16 @@ contract NakshMarketplace{
         require(IERC721(_nftAddress).ownerOf(_tokenId) == msg.sender);
         _;
     }
+
+    /**
+    * @dev Organisation address can be updated to another address in case of attack or compromise(`newOrg`)
+    * Can be done only by the contract owner.
+    */
+    function changeOrgAddress(address _newOrg) public onlyOwner {
+        require(_newOrg != address(0), "New organization cannot be zero address");
+        Naksh_org = payable(_newOrg);
+    }
+
         /**
     * This function is used to set an NFT on sale. 
     * @dev The sale price set in this function will be used to perform the sale transaction
@@ -42,7 +55,6 @@ contract NakshMarketplace{
        saleData[_nft][_tokenId].isOnSale = true;
         saleData[_nft][_tokenId].salePrice = price;
         getOnSaleNFTs.push(NakshNFT(_nft).getNFTData(_tokenId));
-        IERC721(_nft).approve(address(this), _tokenId);
         emit SalePriceSet(_tokenId, price);
     }
 
@@ -106,7 +118,7 @@ contract NakshMarketplace{
             
         }
         
-        _nft.Naksh_org().transfer(toPlatform);
+        Naksh_org.transfer(toPlatform);
 
         
         emit Sold(msg.sender, tOwner, msg.value, _tokenId);
