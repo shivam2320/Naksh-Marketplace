@@ -232,7 +232,7 @@ contract NakshNFT is ERC721URIStorage {
 
         tokenCreator[tokenId] = msg.sender;
         
-        NFTData memory nftNew = NFTData(tokenId, _tokenURI, title, description, artistName, artistData[msg.sender].imageUrl, msg.sender, minter.Artist);
+        NFTData memory nftNew = NFTData(address(this), tokenId, _tokenURI, title, description, artistName, artistData[msg.sender].imageUrl, msg.sender, minter.Artist);
         nftData[tokenId] = nftNew;
         mintedNfts.push(nftNew);
         
@@ -271,7 +271,7 @@ contract NakshNFT is ERC721URIStorage {
 
         tokenCreator[tokenId] = _creator;
         
-        NFTData memory nftNew = NFTData(tokenId, _tokenURI, title, description, artistName, artistData[msg.sender].imageUrl, admin, minter.Admin);
+        NFTData memory nftNew = NFTData(address(this), tokenId, _tokenURI, title, description, artistName, artistData[msg.sender].imageUrl, admin, minter.Admin);
         nftData[tokenId] = nftNew;
         mintedNfts.push(nftNew);
         
@@ -373,7 +373,7 @@ contract NakshNFT is ERC721URIStorage {
 
         tokenCreator[tokenId] = msg.sender;
         
-        NFTData memory nftNew = NFTData(tokenId, _tokenURI[i], title[i], description[i], artistName, artistData[msg.sender].imageUrl, msg.sender, minter.Artist);
+        NFTData memory nftNew = NFTData(address(this), tokenId, _tokenURI[i], title[i], description[i], artistName, artistData[msg.sender].imageUrl, msg.sender, minter.Artist);
         nftData[tokenId] = nftNew;
         mintedNfts.push(nftNew);
         
@@ -402,7 +402,7 @@ contract NakshNFT is ERC721URIStorage {
         uint256 tokenId = _tokenIds.current();
         tokenOwner[tokenId] = _creator[i];
         
-        //tokenIds[i] = tokenId;
+        tokenIds[i] = tokenId;
 
         string memory json = Base64.encode(
             bytes(
@@ -423,7 +423,7 @@ contract NakshNFT is ERC721URIStorage {
 
         tokenCreator[tokenId] = _creator[i];
         
-        NFTData memory nftNew = NFTData(tokenId, _tokenURI[i], title[i], description[i], artistName[i], artistData[msg.sender].imageUrl, admin, minter.Admin);
+        NFTData memory nftNew = NFTData(address(this), tokenId, _tokenURI[i], title[i], description[i], artistName[i], artistData[msg.sender].imageUrl, admin, minter.Admin);
         nftData[tokenId] = nftNew;
         mintedNfts.push(nftNew);
         

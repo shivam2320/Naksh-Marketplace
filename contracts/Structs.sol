@@ -7,6 +7,7 @@ enum minter{
     }
 
     struct NFTData {
+        address nftAddress;
         uint tokenId;
         string tokenUri;
         string title;
