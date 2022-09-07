@@ -1,9 +1,30 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-enum minter{
+    enum minter{
         Admin,
         Artist
+    }
+
+    struct SocialMediaData {
+        string instagram;
+        string facebook;
+        string twitter;
+        string website;
+    }
+
+    struct CoverImage {
+        string uri;
+        bool isGradient;
+    }
+
+    struct CollectionDetails {
+        string name;
+        string symbol;
+        string about;
+        string logo;
+        CoverImage cover;
+        SocialMediaData social;
     }
 
     struct NFTData {
@@ -17,3 +38,4 @@ enum minter{
         address creator;
         minter mintedBy;
     }
+

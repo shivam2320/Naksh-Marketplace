@@ -46,7 +46,7 @@ contract NakshAuction {
     function startAuction(address _nftAddress, uint _tokenId, uint _price, uint _auctionTime) external onlyOwnerOf(_nftAddress, _tokenId) returns (bool) {
         uint _startTime = block.timestamp;
 
-        IERC721(_nftAddress).transferFrom(msg.sender, address(this), _tokenId);
+        IERC721(_nftAddress).safeTransferFrom(msg.sender, address(this), _tokenId);
 
         uint _endTime = block.timestamp + _auctionTime;
 

@@ -23,6 +23,7 @@ contract NakshNFT is ERC721URIStorage {
     mapping(uint256 => address) private tokenOwner;
     mapping(uint256 => address) private tokenCreator;
     mapping(address => uint[]) private creatorTokens;
+    mapping(address => CollectionDetails) private collectionData;
     
     mapping(uint => NFTData) public nftData;
     mapping(address => artistDetails) artistData;
@@ -80,15 +81,15 @@ contract NakshNFT is ERC721URIStorage {
         _;
     }
 
-    constructor(string memory _name, 
-        string memory _symbol,
+    constructor(CollectionDetails memory collection,
         address _owner,
         address payable _admin,
         uint16 _creatorFee,
         address payable[] memory _creators
         )
-        ERC721(_name, _symbol)
+        ERC721(collection.name, collection.symbol)
     {
+        collectionData[address(this)] = collection;
         owner = _owner;
         admin = _admin;
         //Multiply all the three % variables by 100, to kepe it uniform
@@ -109,6 +110,10 @@ contract NakshNFT is ERC721URIStorage {
         require(newOwner != address(0), "New owner cannot be zero address");
         emit OwnershipGranted(newOwner);
         _grantedOwner = newOwner;
+    }
+
+    function getCollectionDetails() external view returns (CollectionDetails memory) {
+        return collectionData[address(this)];
     }
     
     /**

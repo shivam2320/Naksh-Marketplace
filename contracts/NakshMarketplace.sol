@@ -10,13 +10,19 @@ contract NakshMarketplace is Ownable{
 
     address payable public Naksh_org;
 
+    enum saleType {
+        DirectSale,
+        Auction
+    }
+
     struct SaleData {
         bool isOnSale;
         bool tokenFirstSale;
         uint salePrice;
+        saleType saletype;
     }
 
-    NFTData[] getOnSaleNFTs;
+    NFTData[] OnSaleNFTs;
 
     uint constant FLOAT_HANDLER_TEN_4 = 10000;
 
@@ -47,19 +53,26 @@ contract NakshMarketplace is Ownable{
     * @dev The sale price set in this function will be used to perform the sale transaction
     * once the buyer wants to buy an NFT.
     */
-    function setSale(address _nft, uint256 _tokenId, uint256 price) public virtual onlyOwnerOf(_nft, _tokenId) {
+    function setSale(address _nft, uint256 _tokenId, uint256 price) public onlyOwnerOf(_nft, _tokenId) {
         require(saleData[_nft][_tokenId].isOnSale == false, "NFT is already on sale");
         address tOwner = IERC721(_nft).ownerOf(_tokenId);
         require(tOwner != address(0), "setSale: nonexistent token");
-        
-       saleData[_nft][_tokenId].isOnSale = true;
+
+        IERC721(_nft).safeTransferFrom(msg.sender, address(this), _tokenId);
+        saleData[_nft][_tokenId].isOnSale = true;
         saleData[_nft][_tokenId].salePrice = price;
-        getOnSaleNFTs.push(NakshNFT(_nft).getNFTData(_tokenId));
+        OnSaleNFTs.push(NakshNFT(_nft).getNFTData(_tokenId));
         emit SalePriceSet(_tokenId, price);
     }
 
     function getNFTonSale() public view returns (NFTData[] memory){
-        return getOnSaleNFTs;
+        return OnSaleNFTs;
+    }
+
+    function cancelSale(address _nft, uint256 _tokenId) public onlyOwnerOf(_nft, _tokenId) {
+        require(saleData[_nft][_tokenId].isOnSale == true, "NFT is not on sale");
+        IERC721(_nft).safeTransferFrom(address(this), msg.sender, _tokenId);
+        delete saleData[_nft][_tokenId];
     }
 
     /**
@@ -82,7 +95,7 @@ contract NakshMarketplace is Ownable{
         );
         address tOwner = IERC721(_nftAddress).ownerOf(_tokenId);
 
-        IERC721(_nftAddress).safeTransferFrom(tOwner, msg.sender, _tokenId);
+        IERC721(_nftAddress).safeTransferFrom(address(this), msg.sender, _tokenId);
         saleData[_nftAddress][_tokenId].isOnSale = false;
         saleData[_nftAddress][_tokenId].salePrice = 0;
 
