@@ -4,28 +4,11 @@ pragma solidity ^0.8.10;
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./NakshNFT.sol";
 import "./NakshMarketplace.sol";
+import "./Structs.sol";
 
 contract NakshAuction {
 
-    uint constant FLOAT_HANDLER_TEN_4 = 10000;
-
-    struct NFTAuction {
-        uint startTime;
-        uint endTime;
-        uint tokenId;
-        address owner;
-        uint price;
-        uint highestBid;
-        address highestBidder;
-    }
-
     NFTAuction[] auctionedNFTs;
-
-    struct bidHistory {
-        address bidder;
-        uint amount;
-        uint timestamp;
-    }
 
     bidHistory[] previousBids;
 
@@ -53,6 +36,7 @@ contract NakshAuction {
         NFTAuction memory nftAuction = NFTAuction(_startTime, _endTime, _tokenId, msg.sender, _price, 0, address(0));
         auctionData[_nftAddress][_tokenId] = nftAuction;
         auctionedNFTs.push(nftAuction);
+        // OnSaleNFTs.push(NakshNFT(_nft).getNFTData(_tokenId));
 
         emit StartedAuction(_startTime, _endTime, _tokenId, msg.sender, _price);
 
