@@ -2,22 +2,26 @@
 pragma solidity ^0.8.10;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./NakshNFT.sol";
 import "./Structs.sol";
 
-contract NakshMarketplace is Ownable {
+contract NakshMarketplace is Ownable, ERC721Holder {
 
     address payable public Naksh_org;
 
-    SaleData[] OnSaleNFTs;
+    SaleData[] internal OnSaleNFTs;
 
     uint constant FLOAT_HANDLER_TEN_4 = 10000;
 
     mapping(address => mapping (uint => SaleData)) public saleData;
 
-    event SalePriceSet(uint256 indexed _tokenId, uint256 indexed _price);
-    event Sold(address indexed _buyer, address indexed _seller, uint256 _amount, uint256 indexed _tokenId);
+    event SalePriceSet(address indexed _nft, uint256 indexed _tokenId, uint256 indexed _price);
+    event Sold(address indexed _nft, address _buyer, address indexed _seller, uint256 _amount, uint256 indexed _tokenId);
+    event StartedAuction(address _nft, uint startTime, uint endTime, uint indexed tokenId, address indexed owner, uint indexed price);
+    event EndedAuction(address _nft, uint indexed _tokenId, address indexed _buyer, uint indexed highestBID);
+    event Bidding(address indexed _nft, uint indexed _tokenId, address indexed _bidder, uint _amount);
 
         /**
     * Modifier to allow only owners of a token to perform certain actions 
@@ -36,7 +40,13 @@ contract NakshMarketplace is Ownable {
         Naksh_org = payable(_newOrg);
     }
 
-        /**
+    // function MintAndSetSaleByAdmin(address _nft, address _creator, string memory _tokenURI, string memory title,
+    // string memory description, string memory artistName, uint256 price) public {
+    //     NakshNFT(_nft).mintByAdmin(_creator, _tokenURI, title, description, artistName);
+        
+    // }
+
+    /**
     * This function is used to set an NFT on sale. 
     * @dev The sale price set in this function will be used to perform the sale transaction
     * once the buyer wants to buy an NFT.
@@ -52,7 +62,7 @@ contract NakshMarketplace is Ownable {
         saleData[_nft][_tokenId].salePrice = price;
         saleData[_nft][_tokenId].saletype = saleType.DirectSale;
         OnSaleNFTs.push(saleData[_nft][_tokenId]);
-        emit SalePriceSet(_tokenId, price);
+        emit SalePriceSet(_nft, _tokenId, price);
     }
 
     function getNFTonSale() public view returns (SaleData[] memory) {
@@ -140,7 +150,7 @@ contract NakshMarketplace is Ownable {
         Naksh_org.transfer(toPlatform);
 
         
-        emit Sold(msg.sender, tOwner, msg.value, _tokenId);
+        emit Sold(_nftAddress, msg.sender, tOwner, msg.value, _tokenId);
     }
 
         /**
@@ -178,9 +188,7 @@ contract NakshMarketplace is Ownable {
     mapping(address => mapping (uint => bidHistory[]))  public prevBidData;
     mapping(address => uint) public bids;
 
-    event StartedAuction(uint startTime, uint endTime, uint indexed tokenId, address indexed owner, uint indexed price);
-    event EndedAuction(uint indexed _tokenId, address indexed _buyer, uint indexed highestBID);
-    event Bidding(uint indexed _tokenId, address indexed _bidder, uint indexed _amount);
+   
 
     function startAuction(address _nftAddress, uint _tokenId, uint _price, uint _auctionTime) external onlyOwnerOf(_nftAddress, _tokenId) returns (bool) {
         require(saleData[_nftAddress][_tokenId].isOnSale == false, "NFT is already on sale");
@@ -200,7 +208,7 @@ contract NakshMarketplace is Ownable {
         saleData[_nftAddress][_tokenId].saletype = saleType.Auction;
         OnSaleNFTs.push(saleData[_nftAddress][_tokenId]);
 
-        emit StartedAuction(_startTime, _endTime, _tokenId, msg.sender, _price);
+        emit StartedAuction(_nftAddress ,_startTime, _endTime, _tokenId, msg.sender, _price);
 
         return true;
     }
@@ -230,7 +238,7 @@ contract NakshMarketplace is Ownable {
         prevBidData[_nftAddress][_tokenId].push(addBid);
         }
         
-        emit Bidding(_tokenId, msg.sender, msg.value);
+        emit Bidding(_nftAddress, _tokenId, msg.sender, msg.value);
         return true;
     }
 
@@ -259,7 +267,8 @@ contract NakshMarketplace is Ownable {
         delete saleData[_nftAddress][_tokenId];
         updateSaleData(_nftAddress, _tokenId);
 
-        emit EndedAuction(_tokenId, nftAuction.highestBidder, nftAuction.highestBid);
+        emit EndedAuction(_nftAddress , _tokenId, nftAuction.highestBidder, nftAuction.highestBid);
 
     }
+
 }

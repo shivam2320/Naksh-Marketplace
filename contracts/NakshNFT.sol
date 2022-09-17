@@ -8,7 +8,6 @@ pragma solidity ^0.8.10;
 */
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 import "./Structs.sol";
@@ -18,7 +17,7 @@ import "./Structs.sol";
 */
 contract NakshNFT is ERC721URIStorage {
 
-    using SafeMath for uint256;
+    // using SafeMath for uint256;
     mapping(address => bool) public creatorWhitelist;
     mapping(uint256 => address) private tokenOwner;
     mapping(uint256 => address) private tokenCreator;
@@ -144,11 +143,11 @@ contract NakshNFT is ERC721URIStorage {
         return true;
     }
 
-    function fetchArtist(address _artist) public view returns (artistDetails memory) {
-        require(_artist != address(0), "Artist is address(0)");
-        require(creatorWhitelist[_artist] == true, "Given address is not artist");
-        return artistData[_artist];
-    }
+    // function fetchArtist(address _artist) public view returns (artistDetails memory) {
+    //     require(_artist != address(0), "Artist is address(0)");
+    //     require(creatorWhitelist[_artist] == true, "Given address is not artist");
+    //     return artistData[_artist];
+    // }
 
      /** @dev Calculate the royalty distribution for organisation/platform and the
     * creator/artist.
@@ -287,13 +286,6 @@ contract NakshNFT is ERC721URIStorage {
     
 
     /**
-    * This function is used to return all the tokens created by a specific creator
-    */
-    function tokenCreators(address _creator) external view onlyOwner returns(uint[] memory) {
-            return creatorTokens[_creator];
-    }
-
-    /**
     * This function is used to whitelist a creator/ an artist on the platform
     */
     function whitelistCreator(address[] memory _creators) public onlyOwner {
@@ -307,26 +299,6 @@ contract NakshNFT is ERC721URIStorage {
             }
         }
         
-    }
-
-    /**
-    * This function is used to unlist/delist a creator from the platform
-    */
-    function delistCreator(address[] memory _creators) public onlyOwner {
-        for(uint i = 0; i < _creators.length; i++){
-            if (creatorWhitelist[_creators[i]] == true){
-                creatorWhitelist[_creators[i]] = false;
-                emit DelistCreator(_creators[i]);
-            }
-        }
-        
-    }
-
-     /**
-    * This function returns if a creator is whitelisted on the platform or no
-    */
-    function isWhitelisted(address _creator) external view returns (bool) {
-        return creatorWhitelist[_creator];
     }
 
     /**

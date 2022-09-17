@@ -1,9 +1,7 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import "@openzeppelin/contracts/utils/Counters.sol";
 import "./NakshNFT.sol";
-import "./Structs.sol";
 
 contract NakshFactory {
 
@@ -16,7 +14,7 @@ contract NakshFactory {
         address payable _admin,
         uint16 _creatorFee,
         address payable[] memory  _creators)
-         public returns (address) {
+        public returns (address) {
             NakshNFT nft = new NakshNFT(collection, msg.sender, _admin, _creatorFee, _creators);
 
             artist[msg.sender].push(address(nft));
