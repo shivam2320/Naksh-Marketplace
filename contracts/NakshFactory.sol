@@ -7,7 +7,7 @@ contract NakshFactory {
 
     mapping (address => address[]) public artist;
 
-    event CollectionCreated(string indexed name, string indexed symbol, string about, string logo, string uri, bool isGradient, string instagram, string facebook, string twitter, string website, address indexed nftAddress);
+    event CollectionCreated(string indexed name, string indexed symbol, address indexed nftAddress);
     
     function deployNftCollection(
         CollectionDetails memory collection,
@@ -19,7 +19,7 @@ contract NakshFactory {
 
             artist[msg.sender].push(address(nft));
 
-            emit CollectionCreated(collection.name, collection.symbol, collection.about, collection.logo, collection.cover.uri, collection.cover.isGradient, collection.social.instagram, collection.social.facebook, collection.social.twitter, collection.social.website, address(nft));
+            emit CollectionCreated(collection.name, collection.symbol, address(nft));
             return address(nft);
     }
 
