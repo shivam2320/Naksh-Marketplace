@@ -1,4 +1,5 @@
 module.exports = [
+  ["artist", "0x3f6C3Bc1679731825d457541bD27C1d713698306", "imags"],
   [
     "Test1",
     "TST1",

@@ -33,10 +33,14 @@ pragma solidity ^0.8.10;
         string tokenUri;
         string title;
         string description;
-        string artistName;
-        string artistImg;
-        address creator;
+        artistDetails artist;
         minter mintedBy;
+    }
+
+     struct artistDetails {
+        string name;
+        address artistAddress;
+        string imageUrl;
     }
 
     enum saleType {

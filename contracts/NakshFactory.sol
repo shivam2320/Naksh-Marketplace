@@ -5,26 +5,27 @@ import "./NakshNFT.sol";
 
 contract NakshFactory {
 
-    mapping (address => address[]) public artist;
+    mapping (address => address[]) public artistCollections;
 
     event CollectionCreated(string indexed name, string indexed symbol, address indexed nftAddress);
     
     function deployNftCollection(
+        artistDetails memory artist,
         CollectionDetails memory collection,
         address payable _admin,
         uint16 _creatorFee,
         address payable[] memory  _creators)
         public returns (address) {
-            NakshNFT nft = new NakshNFT(collection, msg.sender, _admin, _creatorFee, _creators);
+            NakshNFT nft = new NakshNFT(artist, collection, msg.sender, _admin, _creatorFee, _creators);
 
-            artist[msg.sender].push(address(nft));
+            artistCollections[msg.sender].push(address(nft));
 
             emit CollectionCreated(collection.name, collection.symbol, address(nft));
             return address(nft);
     }
 
-    function getArtistCollections(address _orgniser) public view returns (address[] memory) {
-        return artist[_orgniser];
+    function getArtistCollections(address _artist) public view returns (address[] memory) {
+        return artistCollections[_artist];
     }
 
 }

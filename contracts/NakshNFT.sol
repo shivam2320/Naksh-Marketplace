@@ -20,7 +20,6 @@ contract NakshNFT is ERC721URIStorage {
     // using SafeMath for uint256;
     mapping(address => bool) public creatorWhitelist;
     mapping(uint256 => address) private tokenOwner;
-    mapping(uint256 => address) private tokenCreator;
     mapping(address => uint[]) private creatorTokens;
     mapping(address => CollectionDetails) private collectionData;
     
@@ -31,7 +30,7 @@ contract NakshNFT is ERC721URIStorage {
     event DelistCreator(address indexed _creator);
     event OwnershipGranted(address indexed newOwner);
     event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
-    event Mint(address indexed creator,uint indexed tokenId, string indexed tokenURI);
+    event Mint(address indexed creator,uint indexed tokenId, string indexed tokenURI, string title, string description);
 
     uint constant FLOAT_HANDLER_TEN_4 = 10000;
 
@@ -48,12 +47,6 @@ contract NakshNFT is ERC721URIStorage {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 
-    struct artistDetails {
-        string name;
-        address artistAddress;
-        string imageUrl;
-    }
-
     NFTData[] mintedNfts;
 
     /**
@@ -61,6 +54,11 @@ contract NakshNFT is ERC721URIStorage {
     */
     modifier onlyArtist() virtual {
         require(creatorWhitelist[msg.sender] == true);
+        _;
+    }
+
+    modifier onlyArtistOrAdmin() virtual {
+        require(creatorWhitelist[msg.sender] == true || msg.sender == admin, "Only Artist or Admin can mint");
         _;
     }
 
@@ -80,7 +78,8 @@ contract NakshNFT is ERC721URIStorage {
         _;
     }
 
-    constructor(CollectionDetails memory collection,
+    constructor(artistDetails memory artist,
+        CollectionDetails memory collection,
         address _owner,
         address payable _admin,
         uint16 _creatorFee,
@@ -88,6 +87,8 @@ contract NakshNFT is ERC721URIStorage {
         )
         ERC721(collection.name, collection.symbol)
     {
+        artistData[artist.artistAddress] = artist;
+        creatorWhitelist[artist.artistAddress] = true;
         collectionData[address(this)] = collection;
         owner = _owner;
         admin = _admin;
@@ -134,20 +135,11 @@ contract NakshNFT is ERC721URIStorage {
         admin = newAdmin;
     }
 
-    function createArtist(string memory _name, address _artist, string memory _image) public onlyOwner returns (bool) {
+    function fetchArtist(address _artist) public view returns (artistDetails memory) {
         require(_artist != address(0), "Artist is address(0)");
-        artistDetails memory artist = artistDetails(_name, _artist, _image);
-        artistData[_artist] = artist;
-        creatorWhitelist[_artist] = true;
-
-        return true;
+        require(creatorWhitelist[_artist] == true, "Given address is not artist");
+        return artistData[_artist];
     }
-
-    // function fetchArtist(address _artist) public view returns (artistDetails memory) {
-    //     require(_artist != address(0), "Artist is address(0)");
-    //     require(creatorWhitelist[_artist] == true, "Given address is not artist");
-    //     return artistData[_artist];
-    // }
 
      /** @dev Calculate the royalty distribution for organisation/platform and the
     * creator/artist.
@@ -211,47 +203,10 @@ contract NakshNFT is ERC721URIStorage {
     * @dev The basic information related to the NFT needs to be passeed to this function,
     * in order to store it on chain to avoid disputes in future.
     */
-    function mintByArtist(string memory _tokenURI, string memory title,
-    string memory description, string memory artistName) public virtual onlyArtist returns (uint256 _tokenId) {
-        _tokenIds.increment();
-        uint256 tokenId = _tokenIds.current();
-        tokenOwner[tokenId] = msg.sender;
+    function mintByArtistOrAdmin(address _creator, string memory _tokenURI, string memory title,
+    string memory description, string memory artistName) public onlyArtistOrAdmin returns (uint256 _tokenId) {
 
-        string memory json = Base64.encode(
-            bytes(
-                string(
-                    abi.encodePacked(
-                        '{"title": "',title ,'", "description": "',description ,'", "image": "',_tokenURI ,'", "artist name": "',artistName ,'"}'
-                    )
-                )
-            )
-        );
-
-        string memory finalTokenUri = string(
-            abi.encodePacked("data:application/json;base64,", json)
-        );
-       
-        _mint(msg.sender, tokenId);
-        _setTokenURI(tokenId, finalTokenUri);
-
-        tokenCreator[tokenId] = msg.sender;
-        
-        NFTData memory nftNew = NFTData(address(this), tokenId, _tokenURI, title, description, artistName, artistData[msg.sender].imageUrl, msg.sender, minter.Artist);
-        nftData[tokenId] = nftNew;
-        mintedNfts.push(nftNew);
-        
-        creatorTokens[msg.sender].push(tokenId);
-        emit Mint(msg.sender, tokenId, _tokenURI);
-        return tokenId;
-    }
-
-    /**
-    * This function is used to mint an NFT for the Naksh marketplace.
-    * @dev The basic information related to the NFT needs to be passeed to this function,
-    * in order to store it on chain to avoid disputes in future.
-    */
-    function mintByAdmin(address _creator, string memory _tokenURI, string memory title,
-    string memory description, string memory artistName) public virtual onlyAdmin returns (uint256 _tokenId) {
+        minter mintedBy;
         _tokenIds.increment();
         uint256 tokenId = _tokenIds.current();
         tokenOwner[tokenId] = _creator;
@@ -269,37 +224,25 @@ contract NakshNFT is ERC721URIStorage {
         string memory finalTokenUri = string(
             abi.encodePacked("data:application/json;base64,", json)
         );
-
+       
         _mint(_creator, tokenId);
         _setTokenURI(tokenId, finalTokenUri);
 
-        tokenCreator[tokenId] = _creator;
-        
-        NFTData memory nftNew = NFTData(address(this), tokenId, _tokenURI, title, description, artistName, artistData[msg.sender].imageUrl, admin, minter.Admin);
+        if (msg.sender == admin) {
+            mintedBy = minter.Admin;
+        } else {
+            mintedBy = minter.Artist;
+        }
+
+        NFTData memory nftNew = NFTData(address(this), tokenId, _tokenURI, title, description, artistData[_creator], mintedBy);
         nftData[tokenId] = nftNew;
         mintedNfts.push(nftNew);
         
         creatorTokens[_creator].push(tokenId);
-        emit Mint(_creator,tokenId, _tokenURI);
+        emit Mint(_creator, tokenId, _tokenURI, title, description);
         return tokenId;
     }
     
-
-    /**
-    * This function is used to whitelist a creator/ an artist on the platform
-    */
-    function whitelistCreator(address[] memory _creators) public onlyOwner {
-        for(uint i = 0; i < _creators.length; i++){
-            if(creatorWhitelist[_creators[i]]){
-                //Do nothing if address is already whitelisted
-            }
-            else {
-                creatorWhitelist[_creators[i]] = true;
-                emit WhitelistCreator(_creators[i]);
-            }
-        }
-        
-    }
 
     /**
     * This returns the total number of NFTs minted on the platform
@@ -319,7 +262,7 @@ contract NakshNFT is ERC721URIStorage {
     *This function allows to bulk mint NFTs
     */
     function bulkMintByArtist(string[] memory _tokenURI, string[] memory title,
-    string[] memory description, string memory artistName) public virtual onlyArtist returns (uint256[] memory _tokenId) {
+    string[] memory description, string memory artistName) public onlyArtist returns (uint256[] memory _tokenId) {
         
         uint256[] memory tokenIds;
 
@@ -347,16 +290,14 @@ contract NakshNFT is ERC721URIStorage {
    
         _mint(msg.sender, tokenId);
         _setTokenURI(tokenId, finalTokenUri);
-
-        tokenCreator[tokenId] = msg.sender;
         
-        NFTData memory nftNew = NFTData(address(this), tokenId, _tokenURI[i], title[i], description[i], artistName, artistData[msg.sender].imageUrl, msg.sender, minter.Artist);
+        NFTData memory nftNew = NFTData(address(this), tokenId, _tokenURI[i], title[i], description[i], artistData[msg.sender], minter.Artist);
         nftData[tokenId] = nftNew;
         mintedNfts.push(nftNew);
         
         creatorTokens[msg.sender].push(tokenId);
 
-        emit Mint(msg.sender, tokenId, _tokenURI[i]);
+        emit Mint(msg.sender, tokenId, _tokenURI[i], title[i], description[i]);
 
         unchecked { ++i; }
         }
@@ -366,18 +307,18 @@ contract NakshNFT is ERC721URIStorage {
     /**
     *This function allows to bulk mint NFTs
     */
-    function bulkMintByAdmin(address[] memory _creator, string[] memory _tokenURI, string[] memory title,
-    string[] memory description, string[] memory artistName) public virtual onlyAdmin returns (uint256[] memory _tokenId) {
+    function bulkMintByAdmin(address _creator, string[] memory _tokenURI, string[] memory title,
+    string[] memory description, string memory artistName) public onlyAdmin returns (uint256[] memory _tokenId) {
         
         uint256[] memory tokenIds;
 
-        uint256 length = _creator.length;
+        uint256 length = title.length;
 
         for(uint i = 0; i < length;)
         {
         _tokenIds.increment();
         uint256 tokenId = _tokenIds.current();
-        tokenOwner[tokenId] = _creator[i];
+        tokenOwner[tokenId] = _creator;
         
         tokenIds[i] = tokenId;
 
@@ -385,7 +326,7 @@ contract NakshNFT is ERC721URIStorage {
             bytes(
                 string(
                     abi.encodePacked(
-                        '{"title": "',title[i] ,'", "description": "',description[i] ,'", "image": "',_tokenURI[i] ,'", "artist name": "',artistName[i] ,'"}'
+                        '{"title": "',title[i] ,'", "description": "',description[i] ,'", "image": "',_tokenURI[i] ,'", "artist name": "',artistName ,'"}'
                     )
                 )
             )
@@ -395,18 +336,16 @@ contract NakshNFT is ERC721URIStorage {
             abi.encodePacked("data:application/json;base64,", json)
         );
    
-        _mint(_creator[i], tokenId);
+        _mint(_creator, tokenId);
         _setTokenURI(tokenId, finalTokenUri);
-
-        tokenCreator[tokenId] = _creator[i];
         
-        NFTData memory nftNew = NFTData(address(this), tokenId, _tokenURI[i], title[i], description[i], artistName[i], artistData[msg.sender].imageUrl, admin, minter.Admin);
+        NFTData memory nftNew = NFTData(address(this), tokenId, _tokenURI[i], title[i], description[i], artistData[msg.sender], minter.Admin);
         nftData[tokenId] = nftNew;
         mintedNfts.push(nftNew);
         
-        creatorTokens[_creator[i]].push(tokenId);
+        creatorTokens[_creator].push(tokenId);
 
-        emit Mint(_creator[i],tokenId, _tokenURI[i]);
+        emit Mint(_creator,tokenId, _tokenURI[i], title[i], description[i]);
 
         unchecked { ++i; }
         }
