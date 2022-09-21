@@ -17,16 +17,27 @@ contract NakshFactory {
         artistDetails memory artist,
         CollectionDetails memory collection,
         address payable _admin,
-        uint16 _creatorFee,
+        uint16[] memory _creatorFees,
         address payable[] memory _creators
     ) public returns (address) {
+        require(_creatorFees.length <= 6, "Maximum 6 allowed");
+
+        uint256 _totalCreatorFees;
+        uint256 _length = _creators.length;
+        for (uint8 i; i < _length; ) {
+            _totalCreatorFees += _creatorFees[i];
+            unchecked {
+                ++i;
+            }
+        }
         NakshNFT nft = new NakshNFT(
             artist,
             collection,
             msg.sender,
             _admin,
-            _creatorFee,
-            _creators
+            _creatorFees,
+            _creators,
+            _totalCreatorFees
         );
 
         artistCollections[msg.sender].push(address(nft));

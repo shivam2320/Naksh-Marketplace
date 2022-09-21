@@ -44,7 +44,8 @@ contract NakshNFT is ERC721URIStorage {
     address public admin;
     uint256 public sellerFee;
     uint256 public orgFee;
-    uint256 public creatorFee;
+    uint16[] public creatorFees;
+    uint256 public totalCreatorFees;
     address payable[] public creators;
     uint256 public TotalSplits = creators.length;
     uint256 public sellerFeeInitial;
@@ -91,8 +92,9 @@ contract NakshNFT is ERC721URIStorage {
         CollectionDetails memory collection,
         address _owner,
         address payable _admin,
-        uint16 _creatorFee,
-        address payable[] memory _creators
+        uint16[] memory _creatorFees,
+        address payable[] memory _creators,
+        uint256 _totalCreatorFees
     ) ERC721(collection.name, collection.symbol) {
         artistData[artist.artistAddress] = artist;
         creatorWhitelist[artist.artistAddress] = true;
@@ -101,9 +103,10 @@ contract NakshNFT is ERC721URIStorage {
         admin = _admin;
         //Multiply all the three % variables by 100, to kepe it uniform
         orgFee = 500;
-        creatorFee = _creatorFee;
+        creatorFees = _creatorFees;
         creators = _creators;
-        sellerFee = 10000 - orgFee - creatorFee;
+        totalCreatorFees = _totalCreatorFees;
+        sellerFee = 10000 - orgFee - totalCreatorFees;
         // Fees for first sale only
         orgFeeInitial = 500;
         sellerFeeInitial = 10000 - orgFeeInitial;
@@ -168,19 +171,28 @@ contract NakshNFT is ERC721URIStorage {
      * are set in this function.
      * The 'sellerFee' indicates the final amount to be sent to the seller.
      */
-    function setRoyaltyPercentage(uint256 _orgFee, uint256 _creatorFee)
+    function setRoyaltyPercentage(uint256 _orgFee, uint16[] memory _creatorFees)
         public
         onlyOwner
         returns (bool)
     {
+        uint256 _totalCreatorFees;
+        uint256 _length = _creatorFees.length;
+        for (uint8 i; i < _length; ) {
+            _totalCreatorFees += _creatorFees[i];
+            unchecked {
+                ++i;
+            }
+        }
         //Sum of org fee and creator fee should be 100%
         require(
-            10000 > _orgFee + _creatorFee,
+            10000 > _orgFee + _totalCreatorFees,
             "Sum of creator fee and org fee should be 100%"
         );
         orgFee = _orgFee;
-        creatorFee = _creatorFee;
-        sellerFee = 10000 - orgFee - creatorFee;
+        creatorFees = _creatorFees;
+        totalCreatorFees = _totalCreatorFees;
+        sellerFee = 10000 - orgFee - totalCreatorFees;
         return true;
     }
 
@@ -217,7 +229,7 @@ contract NakshNFT is ERC721URIStorage {
             uint256 _sellerFeeInitial
         )
     {
-        return (orgFee, creatorFee, orgFeeInitial, sellerFeeInitial);
+        return (orgFee, totalCreatorFees, orgFeeInitial, sellerFeeInitial);
     }
 
     /**
@@ -230,6 +242,14 @@ contract NakshNFT is ERC721URIStorage {
     function getSellerFee() public view returns (uint256) {
         //Returning % multiplied by 100 to keep it uniform across contract
         return sellerFee;
+    }
+
+    function getTotalCreatorFees() public view returns (uint256) {
+        return totalCreatorFees;
+    }
+
+    function getCreatorFees() public view returns (uint16[] memory) {
+        return creatorFees;
     }
 
     function getNFTData(uint256 _tokenId) public view returns (NFTData memory) {

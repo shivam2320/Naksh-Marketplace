@@ -16,7 +16,13 @@ contract NakshMarketplace is Ownable, ERC721Holder {
 
     mapping(address => mapping(uint256 => SaleData)) public saleData;
 
-    event SalePriceSet(address _nft, uint256 _tokenId, uint256 _price);
+    event SalePriceSet(
+        address _nft,
+        uint256 _tokenId,
+        uint256 _price,
+        bool tokenFirstSale,
+        saleType saletype
+    );
     event Sold(
         address _nft,
         address _buyer,
@@ -94,7 +100,13 @@ contract NakshMarketplace is Ownable, ERC721Holder {
         saleData[_nft][_tokenId].salePrice = price;
         saleData[_nft][_tokenId].saletype = saleType.DirectSale;
         OnSaleNFTs.push(saleData[_nft][_tokenId]);
-        emit SalePriceSet(_nft, _tokenId, price);
+        emit SalePriceSet(
+            _nft,
+            _tokenId,
+            price,
+            saleData[_nft][_tokenId].tokenFirstSale,
+            saleData[_nft][_tokenId].saletype
+        );
     }
 
     function getNFTonSale() public view returns (SaleData[] memory) {
@@ -151,14 +163,12 @@ contract NakshMarketplace is Ownable, ERC721Holder {
         NakshNFT _nft = NakshNFT(_nftAddress);
         uint256 price = saleData[_nftAddress][_tokenId].salePrice;
         uint256 sellerFees = _nft.getSellerFee();
-        uint256 creatorRoyalty = _nft.creatorFee();
+        uint16[] memory creatorRoyalty = _nft.getCreatorFees();
+        uint256 totalCreatorFees = _nft.getTotalCreatorFees();
         uint256 platformFees = _nft.orgFee();
 
         require(price != 0, "buyToken: price equals 0");
-        require(
-            msg.value >= price,
-            "buyToken: price doesn't equal salePrice[tokenId]"
-        );
+        require(msg.value >= price, "buyToken: price doesn't equal salePrice");
         address tOwner = IERC721(_nftAddress).ownerOf(_tokenId);
 
         IERC721(_nftAddress).safeTransferFrom(
@@ -170,13 +180,10 @@ contract NakshMarketplace is Ownable, ERC721Holder {
         updateSaleData(_nftAddress, _tokenId);
 
         if (saleData[_nftAddress][_tokenId].tokenFirstSale == false) {
-            /* Platform takes 5% on each artist's first sale
-             *  All values are multiplied by 100 to deal with floating points
-             */
             platformFees = _nft.orgFeeInitial();
             sellerFees = _nft.sellerFeeInitial();
             // No creator royalty/royalties when artist is minting for the first time
-            creatorRoyalty = 0;
+            totalCreatorFees = 0;
 
             saleData[_nftAddress][_tokenId].tokenFirstSale = true;
         }
@@ -184,25 +191,34 @@ contract NakshMarketplace is Ownable, ERC721Holder {
         //Dividing by 100*100 as all values are multiplied by 100
         uint256 toSeller = (msg.value * sellerFees) / FLOAT_HANDLER_TEN_4;
 
-        //Dividing by 100*100 as all values are multiplied by 100
-        uint256 toCreator = (msg.value * creatorRoyalty) / FLOAT_HANDLER_TEN_4;
         uint256 toPlatform = (msg.value * platformFees) / FLOAT_HANDLER_TEN_4;
 
         // address tokenCreatorAddress = tokenCreator[_tokenId];
 
         payable(tOwner).transfer(toSeller);
 
-        if (toCreator != 0) {
-            uint256 _TotalSplits = _nft.TotalSplits();
-            uint256 toCreators = toCreator / _TotalSplits;
-            for (uint8 i = 0; i < _TotalSplits; ) {
-                payable(_nft.creators(i)).transfer(toCreators);
-            }
+        if (totalCreatorFees != 0) {
+            splitCreatorRoyalty(address(_nft), creatorRoyalty);
         }
 
         Naksh_org.transfer(toPlatform);
 
         emit Sold(_nftAddress, msg.sender, tOwner, msg.value, _tokenId);
+    }
+
+    function splitCreatorRoyalty(
+        address _nftAddress,
+        uint16[] memory creatorRoyalty
+    ) internal {
+        NakshNFT _nft = NakshNFT(_nftAddress);
+        uint256 _TotalSplits = _nft.TotalSplits();
+        uint256[] memory toCreators;
+        for (uint8 i = 0; i < _TotalSplits; ) {
+            toCreators[i] =
+                (msg.value * creatorRoyalty[i]) /
+                FLOAT_HANDLER_TEN_4;
+            payable(_nft.creators(i)).transfer(toCreators[i]);
+        }
     }
 
     /**
