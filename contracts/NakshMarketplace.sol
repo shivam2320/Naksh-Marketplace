@@ -48,7 +48,8 @@ contract NakshMarketplace is Ownable, ERC721Holder {
         address _nft,
         uint256 _tokenId,
         address _bidder,
-        uint256 _amount
+        uint256 _amount,
+        uint256 timestamp
     );
 
     /**
@@ -115,7 +116,8 @@ contract NakshMarketplace is Ownable, ERC721Holder {
 
     function updateSaleData(address _nftAddress, uint256 _tokenId) internal {
         uint256 leng = OnSaleNFTs.length;
-        for (uint256 i = 0; i <= leng; ) {
+
+        for (uint256 i = 0; i < leng; ) {
             if (
                 OnSaleNFTs[i].nft.nftAddress == _nftAddress &&
                 OnSaleNFTs[i].nft.tokenId == _tokenId
@@ -192,8 +194,6 @@ contract NakshMarketplace is Ownable, ERC721Holder {
         uint256 toSeller = (msg.value * sellerFees) / FLOAT_HANDLER_TEN_4;
 
         uint256 toPlatform = (msg.value * platformFees) / FLOAT_HANDLER_TEN_4;
-
-        // address tokenCreatorAddress = tokenCreator[_tokenId];
 
         payable(tOwner).transfer(toSeller);
 
@@ -275,7 +275,7 @@ contract NakshMarketplace is Ownable, ERC721Holder {
     mapping(address => mapping(uint256 => NFTAuction)) public auctionData;
 
     mapping(address => mapping(uint256 => bidHistory[])) public prevBidData;
-    mapping(address => uint256) public bids;
+    mapping(address => uint256) internal bids;
 
     function startAuction(
         address _nftAddress,
@@ -334,7 +334,7 @@ contract NakshMarketplace is Ownable, ERC721Holder {
         payable
         returns (bool)
     {
-        NFTAuction memory nftAuction = auctionData[_nftAddress][_tokenId];
+        NFTAuction storage nftAuction = auctionData[_nftAddress][_tokenId];
 
         require(nftAuction.endTime >= block.timestamp, "Auction has ended");
         require(nftAuction.price <= msg.value, "Pay more than base price");
@@ -343,22 +343,19 @@ contract NakshMarketplace is Ownable, ERC721Holder {
             "Pay more than highest bid"
         );
 
-        if (nftAuction.highestBidder != address(0)) {
+        if (nftAuction.highestBidder == address(0)) {
+            nftAuction.highestBidder = msg.sender;
+            nftAuction.highestBid = msg.value;
             bidHistory memory addBid = bidHistory(
                 msg.sender,
                 msg.value,
                 block.timestamp
             );
             prevBidData[_nftAddress][_tokenId].push(addBid);
-            uint256 bal = bids[nftAuction.highestBidder];
-            bids[nftAuction.highestBidder] = 0;
-            payable(nftAuction.highestBidder).transfer(bal);
-            nftAuction.highestBid = msg.value;
-            bids[msg.sender] = nftAuction.highestBid;
-            nftAuction.highestBidder = msg.sender;
         } else {
-            nftAuction.highestBidder = msg.sender;
+            payable(nftAuction.highestBidder).transfer(nftAuction.highestBid);
             nftAuction.highestBid = msg.value;
+            nftAuction.highestBidder = msg.sender;
             bidHistory memory addBid = bidHistory(
                 msg.sender,
                 msg.value,
@@ -367,7 +364,13 @@ contract NakshMarketplace is Ownable, ERC721Holder {
             prevBidData[_nftAddress][_tokenId].push(addBid);
         }
 
-        emit Bidding(_nftAddress, _tokenId, msg.sender, msg.value);
+        emit Bidding(
+            _nftAddress,
+            _tokenId,
+            msg.sender,
+            msg.value,
+            block.timestamp
+        );
         return true;
     }
 
@@ -380,7 +383,7 @@ contract NakshMarketplace is Ownable, ERC721Holder {
     }
 
     function endAuction(address _nftAddress, uint256 _tokenId) external {
-        NFTAuction memory nftAuction = auctionData[_nftAddress][_tokenId];
+        NFTAuction storage nftAuction = auctionData[_nftAddress][_tokenId];
 
         require(
             nftAuction.owner == msg.sender,
@@ -407,7 +410,6 @@ contract NakshMarketplace is Ownable, ERC721Holder {
             );
         }
 
-        delete nftAuction;
         delete saleData[_nftAddress][_tokenId];
         updateSaleData(_nftAddress, _tokenId);
 

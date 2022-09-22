@@ -64,10 +64,7 @@ contract NakshNFT is ERC721URIStorage {
     }
 
     modifier onlyArtistOrAdmin() virtual {
-        require(
-            creatorWhitelist[msg.sender] == true || msg.sender == admin,
-            "Only Artist or Admin can mint"
-        );
+        require(creatorWhitelist[msg.sender] == true || msg.sender == admin);
         _;
     }
 
@@ -117,7 +114,7 @@ contract NakshNFT is ERC721URIStorage {
      * Can only be called by the current owner.
      */
     function grantContractOwnership(address newOwner) public virtual onlyOwner {
-        require(newOwner != address(0), "New owner cannot be zero address");
+        require(newOwner != address(0));
         emit OwnershipGranted(newOwner);
         _grantedOwner = newOwner;
     }
@@ -148,7 +145,7 @@ contract NakshNFT is ERC721URIStorage {
      *@dev Current admin can transfer admin rights to a new account.
      */
     function grantAdminRights(address newAdmin) public virtual onlyAdmin {
-        require(newAdmin != address(0), "New Admin cannot be zero address");
+        require(newAdmin != address(0));
         admin = newAdmin;
     }
 
@@ -157,7 +154,7 @@ contract NakshNFT is ERC721URIStorage {
         view
         returns (artistDetails memory)
     {
-        require(_artist != address(0), "Artist is address(0)");
+        require(_artist != address(0));
         require(
             creatorWhitelist[_artist] == true,
             "Given address is not artist"
@@ -171,30 +168,27 @@ contract NakshNFT is ERC721URIStorage {
      * are set in this function.
      * The 'sellerFee' indicates the final amount to be sent to the seller.
      */
-    function setRoyaltyPercentage(uint256 _orgFee, uint16[] memory _creatorFees)
-        public
-        onlyOwner
-        returns (bool)
-    {
-        uint256 _totalCreatorFees;
-        uint256 _length = _creatorFees.length;
-        for (uint8 i; i < _length; ) {
-            _totalCreatorFees += _creatorFees[i];
-            unchecked {
-                ++i;
-            }
-        }
-        //Sum of org fee and creator fee should be 100%
-        require(
-            10000 > _orgFee + _totalCreatorFees,
-            "Sum of creator fee and org fee should be 100%"
-        );
-        orgFee = _orgFee;
-        creatorFees = _creatorFees;
-        totalCreatorFees = _totalCreatorFees;
-        sellerFee = 10000 - orgFee - totalCreatorFees;
-        return true;
-    }
+    // function setRoyaltyPercentage(uint256 _orgFee, uint16[] memory _creatorFees)
+    //     public
+    //     onlyOwner
+    //     returns (bool)
+    // {
+    //     uint256 _totalCreatorFees;
+    //     uint256 _length = _creatorFees.length;
+    //     for (uint8 i; i < _length; ) {
+    //         _totalCreatorFees += _creatorFees[i];
+    //         unchecked {
+    //             ++i;
+    //         }
+    //     }
+    //     //Sum of org fee and creator fee should be 100%
+    //     require(10000 > _orgFee + _totalCreatorFees, "Sum should be 100%");
+    //     orgFee = _orgFee;
+    //     creatorFees = _creatorFees;
+    //     totalCreatorFees = _totalCreatorFees;
+    //     sellerFee = 10000 - orgFee - totalCreatorFees;
+    //     return true;
+    // }
 
     /** @dev Calculate the royalty distribution for organisation/platform and the
      * creator/artist(who would be the seller) on the first sale.
