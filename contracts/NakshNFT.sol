@@ -23,7 +23,7 @@ contract NakshNFT is ERC721URIStorage {
     mapping(address => CollectionDetails) private collectionData;
 
     mapping(uint256 => NFTData) public nftData;
-    mapping(address => artistDetails) artistData;
+    mapping(address => artistDetails) internal artistData;
 
     event WhitelistCreator(address _creator);
     event DelistCreator(address _creator);
@@ -34,7 +34,9 @@ contract NakshNFT is ERC721URIStorage {
         uint256 tokenId,
         string tokenURI,
         string title,
-        string description
+        string description,
+        string artistName,
+        string artistImg
     );
 
     uint256 constant FLOAT_HANDLER_TEN_4 = 10000;
@@ -53,7 +55,7 @@ contract NakshNFT is ERC721URIStorage {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 
-    NFTData[] mintedNfts;
+    NFTData[] internal mintedNfts;
 
     /**
      * Modifier to allow only minters to mint
@@ -163,34 +165,6 @@ contract NakshNFT is ERC721URIStorage {
     }
 
     /** @dev Calculate the royalty distribution for organisation/platform and the
-     * creator/artist.
-     * Each of the organisation, creator royalty and the parent organsation fees
-     * are set in this function.
-     * The 'sellerFee' indicates the final amount to be sent to the seller.
-     */
-    // function setRoyaltyPercentage(uint256 _orgFee, uint16[] memory _creatorFees)
-    //     public
-    //     onlyOwner
-    //     returns (bool)
-    // {
-    //     uint256 _totalCreatorFees;
-    //     uint256 _length = _creatorFees.length;
-    //     for (uint8 i; i < _length; ) {
-    //         _totalCreatorFees += _creatorFees[i];
-    //         unchecked {
-    //             ++i;
-    //         }
-    //     }
-    //     //Sum of org fee and creator fee should be 100%
-    //     require(10000 > _orgFee + _totalCreatorFees, "Sum should be 100%");
-    //     orgFee = _orgFee;
-    //     creatorFees = _creatorFees;
-    //     totalCreatorFees = _totalCreatorFees;
-    //     sellerFee = 10000 - orgFee - totalCreatorFees;
-    //     return true;
-    // }
-
-    /** @dev Calculate the royalty distribution for organisation/platform and the
      * creator/artist(who would be the seller) on the first sale.
      * The first iteration of whitepaper has the following stats:
      * orgFee = 5%
@@ -260,7 +234,8 @@ contract NakshNFT is ERC721URIStorage {
         string memory _tokenURI,
         string memory title,
         string memory description,
-        string memory artistName
+        string memory artistName,
+        string memory artistImg
     ) public onlyArtistOrAdmin returns (uint256 _tokenId) {
         minter mintedBy;
         _tokenIds.increment();
@@ -311,7 +286,15 @@ contract NakshNFT is ERC721URIStorage {
         mintedNfts.push(nftNew);
 
         creatorTokens[_creator].push(tokenId);
-        emit Mint(_creator, tokenId, _tokenURI, title, description);
+        emit Mint(
+            _creator,
+            tokenId,
+            _tokenURI,
+            title,
+            description,
+            artistName,
+            artistImg
+        );
         return tokenId;
     }
 
@@ -336,7 +319,8 @@ contract NakshNFT is ERC721URIStorage {
         string[] memory _tokenURI,
         string[] memory title,
         string[] memory description,
-        string memory artistName
+        string memory artistName,
+        string memory artistImg
     ) public onlyArtist returns (uint256[] memory _tokenId) {
         uint256[] memory tokenIds;
 
@@ -391,7 +375,9 @@ contract NakshNFT is ERC721URIStorage {
                 tokenId,
                 _tokenURI[i],
                 title[i],
-                description[i]
+                description[i],
+                artistName,
+                artistImg
             );
 
             unchecked {
@@ -409,7 +395,8 @@ contract NakshNFT is ERC721URIStorage {
         string[] memory _tokenURI,
         string[] memory title,
         string[] memory description,
-        string memory artistName
+        string memory artistName,
+        string memory artistImg
     ) public onlyAdmin returns (uint256[] memory _tokenId) {
         uint256[] memory tokenIds;
 
@@ -466,7 +453,9 @@ contract NakshNFT is ERC721URIStorage {
                 tokenId,
                 _tokenURI[i],
                 title[i],
-                description[i]
+                description[i],
+                artistName,
+                artistImg
             );
 
             unchecked {

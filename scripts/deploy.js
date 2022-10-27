@@ -14,7 +14,7 @@ async function main() {
   // await hre.run('compile');
 
   // We get the contract to deploy
-  const Naksh = await hre.ethers.getContractFactory("NakshMarketplace");
+  const Naksh = await hre.ethers.getContractFactory("NakshFactory");
   const naksh = await Naksh.deploy();
 
   await naksh.deployed();

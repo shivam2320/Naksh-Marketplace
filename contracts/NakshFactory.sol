@@ -8,7 +8,9 @@ contract NakshFactory {
 
     event CollectionCreated(
         address creator,
-        string name,
+        string artistName,
+        string artistImg,
+        string collectionName,
         string symbol,
         address nftAddress
     );
@@ -44,6 +46,8 @@ contract NakshFactory {
 
         emit CollectionCreated(
             msg.sender,
+            artist.name,
+            artist.imageUrl,
             collection.name,
             collection.symbol,
             address(nft)

@@ -20,6 +20,7 @@ contract NakshMarketplace is Ownable, ERC721Holder {
         address _nft,
         uint256 _tokenId,
         uint256 _price,
+        uint256 currentTimestamp,
         bool tokenFirstSale,
         saleType saletype
     );
@@ -28,10 +29,12 @@ contract NakshMarketplace is Ownable, ERC721Holder {
         address _buyer,
         address _seller,
         uint256 _amount,
-        uint256 _tokenId
+        uint256 _tokenId,
+        uint256 timestamp
     );
     event StartedAuction(
         address _nft,
+        uint256 currentTimestamp,
         uint256 startTime,
         uint256 endTime,
         uint256 tokenId,
@@ -42,7 +45,8 @@ contract NakshMarketplace is Ownable, ERC721Holder {
         address _nft,
         uint256 _tokenId,
         address _buyer,
-        uint256 highestBID
+        uint256 highestBID,
+        uint256 timestamp
     );
     event Bidding(
         address _nft,
@@ -105,6 +109,7 @@ contract NakshMarketplace is Ownable, ERC721Holder {
             _nft,
             _tokenId,
             price,
+            block.timestamp,
             saleData[_nft][_tokenId].tokenFirstSale,
             saleData[_nft][_tokenId].saletype
         );
@@ -171,15 +176,16 @@ contract NakshMarketplace is Ownable, ERC721Holder {
 
         require(price != 0, "buyToken: price equals 0");
         require(msg.value >= price, "buyToken: price doesn't equal salePrice");
-        address tOwner = IERC721(_nftAddress).ownerOf(_tokenId);
+        address tOwner = saleData[_nftAddress][_tokenId]
+            .nft
+            .artist
+            .artistAddress;
 
         IERC721(_nftAddress).safeTransferFrom(
             address(this),
             msg.sender,
             _tokenId
         );
-        delete saleData[_nftAddress][_tokenId];
-        updateSaleData(_nftAddress, _tokenId);
 
         if (saleData[_nftAddress][_tokenId].tokenFirstSale == false) {
             platformFees = _nft.orgFeeInitial();
@@ -203,7 +209,17 @@ contract NakshMarketplace is Ownable, ERC721Holder {
 
         Naksh_org.transfer(toPlatform);
 
-        emit Sold(_nftAddress, msg.sender, tOwner, msg.value, _tokenId);
+        delete saleData[_nftAddress][_tokenId];
+        updateSaleData(_nftAddress, _tokenId);
+
+        emit Sold(
+            _nftAddress,
+            msg.sender,
+            tOwner,
+            msg.value,
+            _tokenId,
+            block.timestamp
+        );
     }
 
     function splitCreatorRoyalty(
@@ -319,6 +335,7 @@ contract NakshMarketplace is Ownable, ERC721Holder {
 
         emit StartedAuction(
             _nftAddress,
+            block.timestamp,
             _startTime,
             _endTime,
             _tokenId,
@@ -386,11 +403,14 @@ contract NakshMarketplace is Ownable, ERC721Holder {
         NFTAuction storage nftAuction = auctionData[_nftAddress][_tokenId];
 
         require(
-            nftAuction.owner == msg.sender,
+            nftAuction.owner == msg.sender ||
+                nftAuction.highestBidder == msg.sender,
             "Only owner of nft can call this"
         );
+
         require(
-            nftAuction.endTime <= block.timestamp,
+            nftAuction.owner == msg.sender ||
+                nftAuction.endTime <= block.timestamp,
             "Auction has not yet ended"
         );
 
@@ -417,7 +437,8 @@ contract NakshMarketplace is Ownable, ERC721Holder {
             _nftAddress,
             _tokenId,
             nftAuction.highestBidder,
-            nftAuction.highestBid
+            nftAuction.highestBid,
+            block.timestamp
         );
     }
 }
