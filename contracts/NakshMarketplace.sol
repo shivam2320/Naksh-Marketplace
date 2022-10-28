@@ -1,13 +1,14 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.10;
+pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./NakshNFT.sol";
 import "./Structs.sol";
 
-contract NakshMarketplace is Ownable, ERC721Holder {
+contract NakshMarketplace is Ownable, ERC721Holder, ReentrancyGuard {
     address payable public Naksh_org;
 
     SaleData[] internal OnSaleNFTs;
@@ -166,6 +167,7 @@ contract NakshMarketplace is Ownable, ERC721Holder {
     function buyTokenOnSale(uint256 _tokenId, address _nftAddress)
         public
         payable
+        nonReentrant
     {
         NakshNFT _nft = NakshNFT(_nftAddress);
         uint256 price = saleData[_nftAddress][_tokenId].salePrice;
