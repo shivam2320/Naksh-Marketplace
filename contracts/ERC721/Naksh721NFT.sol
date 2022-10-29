@@ -10,12 +10,12 @@ pragma solidity ^0.8.7;
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
-import "./Structs.sol";
+import "../Structs.sol";
 
 /*
  * This is the Naksh Marketplace contract for Minting NFTs and Direct Sale + Auction.
  */
-contract NakshNFT is ERC721URIStorage {
+contract Naksh721NFT is ERC721URIStorage {
     // using SafeMath for uint256;
     mapping(address => bool) public creatorWhitelist;
     mapping(uint256 => address) private tokenOwner;

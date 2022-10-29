@@ -5,15 +5,15 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "./NakshNFT.sol";
-import "./Structs.sol";
+import "./Naksh721NFT.sol";
+import "../Structs.sol";
 
-contract NakshMarketplace is Ownable, ERC721Holder, ReentrancyGuard {
+contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
     address payable public Naksh_org;
 
     SaleData[] internal OnSaleNFTs;
 
-    uint256 constant FLOAT_HANDLER_TEN_4 = 10000;
+    uint256 internal constant FLOAT_HANDLER_TEN_4 = 10000;
 
     mapping(address => mapping(uint256 => SaleData)) public saleData;
 
@@ -79,7 +79,7 @@ contract NakshMarketplace is Ownable, ERC721Holder, ReentrancyGuard {
 
     // function MintAndSetSaleByAdmin(address _nft, address _creator, string memory _tokenURI, string memory title,
     // string memory description, string memory artistName, uint256 price) public {
-    //     NakshNFT(_nft).mintByAdmin(_creator, _tokenURI, title, description, artistName);
+    //     Naksh721NFT(_nft).mintByAdmin(_creator, _tokenURI, title, description, artistName);
 
     // }
 
@@ -101,7 +101,7 @@ contract NakshMarketplace is Ownable, ERC721Holder, ReentrancyGuard {
         require(tOwner != address(0), "setSale: nonexistent token");
 
         IERC721(_nft).safeTransferFrom(msg.sender, address(this), _tokenId);
-        saleData[_nft][_tokenId].nft = NakshNFT(_nft).getNFTData(_tokenId);
+        saleData[_nft][_tokenId].nft = Naksh721NFT(_nft).getNFTData(_tokenId);
         saleData[_nft][_tokenId].isOnSale = true;
         saleData[_nft][_tokenId].salePrice = price;
         saleData[_nft][_tokenId].saletype = saleType.DirectSale;
@@ -169,7 +169,7 @@ contract NakshMarketplace is Ownable, ERC721Holder, ReentrancyGuard {
         payable
         nonReentrant
     {
-        NakshNFT _nft = NakshNFT(_nftAddress);
+        Naksh721NFT _nft = Naksh721NFT(_nftAddress);
         uint256 price = saleData[_nftAddress][_tokenId].salePrice;
         uint256 sellerFees = _nft.getSellerFee();
         uint16[] memory creatorRoyalty = _nft.getCreatorFees();
@@ -228,7 +228,7 @@ contract NakshMarketplace is Ownable, ERC721Holder, ReentrancyGuard {
         address _nftAddress,
         uint16[] memory creatorRoyalty
     ) internal {
-        NakshNFT _nft = NakshNFT(_nftAddress);
+        Naksh721NFT _nft = Naksh721NFT(_nftAddress);
         uint256 _TotalSplits = _nft.TotalSplits();
         uint256[] memory toCreators;
         for (uint8 i = 0; i < _TotalSplits; ) {
@@ -327,9 +327,8 @@ contract NakshMarketplace is Ownable, ERC721Holder, ReentrancyGuard {
         auctionData[_nftAddress][_tokenId] = nftAuction;
         auctionedNFTs.push(nftAuction);
 
-        saleData[_nftAddress][_tokenId].nft = NakshNFT(_nftAddress).getNFTData(
-            _tokenId
-        );
+        saleData[_nftAddress][_tokenId].nft = Naksh721NFT(_nftAddress)
+            .getNFTData(_tokenId);
         saleData[_nftAddress][_tokenId].isOnSale = true;
         saleData[_nftAddress][_tokenId].salePrice = _price;
         saleData[_nftAddress][_tokenId].saletype = saleType.Auction;

@@ -6,7 +6,7 @@ pragma solidity ^0.8.7;
  * @notice This is the NFT Factory contract for deploying new NFT collections.
  */
 
-import "./NakshNFT.sol";
+import "./Naksh721NFT.sol";
 
 contract NakshFactory {
     /**
