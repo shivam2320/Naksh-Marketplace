@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./Naksh721NFT.sol";
-import "../Structs.sol";
+import "./Structs.sol";
 
 contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
     address payable public Naksh_org;
@@ -196,6 +196,8 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
             totalCreatorFees = 0;
 
             saleData[_nftAddress][_tokenId].tokenFirstSale = true;
+        } else {
+            totalCreatorFees = _nft.getTotalCreatorFees();
         }
 
         //Dividing by 100*100 as all values are multiplied by 100

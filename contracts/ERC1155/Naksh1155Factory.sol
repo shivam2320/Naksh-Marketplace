@@ -6,9 +6,9 @@ pragma solidity ^0.8.7;
  * @notice This is the NFT Factory contract for deploying new NFT collections.
  */
 
-import "./Naksh721NFT.sol";
+import "./Naksh1155NFT.sol";
 
-contract NakshFactory {
+contract Naksh1155Factory {
     /**
      * Mapping to get deployed collection addresses by a artist
      */
@@ -50,7 +50,7 @@ contract NakshFactory {
                 ++i;
             }
         }
-        Naksh721NFT nft = new Naksh721NFT(
+        Naksh1155NFT nft = new Naksh1155NFT(
             artist,
             collection,
             _admin,

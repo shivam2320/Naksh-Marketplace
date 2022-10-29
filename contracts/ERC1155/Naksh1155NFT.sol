@@ -7,7 +7,7 @@ pragma solidity ^0.8.7;
  * @dev Most function calls are currently implemented with access control
  */
 
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 import "./Structs.sol";
@@ -15,12 +15,13 @@ import "./Structs.sol";
 /*
  * This is the Naksh Marketplace contract for Minting NFTs and Direct Sale + Auction.
  */
-contract Naksh721NFT is ERC721URIStorage {
+contract Naksh1155NFT is ERC1155 {
     // using SafeMath for uint256;
     mapping(address => bool) public creatorWhitelist;
     mapping(uint256 => address) private tokenOwner;
     mapping(address => uint256[]) private creatorTokens;
     mapping(address => CollectionDetails) private collectionData;
+    mapping(uint256 => string) private _tokenURIs;
 
     mapping(uint256 => NFTData) public nftData;
     mapping(address => artistDetails) internal artistData;
@@ -32,6 +33,7 @@ contract Naksh721NFT is ERC721URIStorage {
     event Mint(
         address creator,
         uint256 tokenId,
+        uint256 amount,
         string tokenURI,
         string title,
         string description,
@@ -41,6 +43,8 @@ contract Naksh721NFT is ERC721URIStorage {
 
     uint256 constant FLOAT_HANDLER_TEN_4 = 10000;
 
+    string public name;
+    string public symbol;
     address public admin;
     uint256 public sellerFee;
     uint256 public orgFee;
@@ -75,7 +79,9 @@ contract Naksh721NFT is ERC721URIStorage {
         uint16[] memory _creatorFees,
         address payable[] memory _creators,
         uint256 _totalCreatorFees
-    ) ERC721(collection.name, collection.symbol) {
+    ) ERC1155("") {
+        name = collection.name;
+        symbol = collection.symbol;
         artistData[artist.artistAddress] = artist;
         creatorWhitelist[artist.artistAddress] = true;
         collectionData[address(this)] = collection;
@@ -176,6 +182,14 @@ contract Naksh721NFT is ERC721URIStorage {
         return creatorFees;
     }
 
+    function uri(uint256 tokenId) public view override returns (string memory) {
+        return (_tokenURIs[tokenId]);
+    }
+
+    function _setTokenURI(uint256 tokenId, string memory tokenURI) private {
+        _tokenURIs[tokenId] = tokenURI;
+    }
+
     function getNFTData(uint256 _tokenId) public view returns (NFTData memory) {
         return nftData[_tokenId];
     }
@@ -188,6 +202,7 @@ contract Naksh721NFT is ERC721URIStorage {
     function mintByArtistOrAdmin(
         address _creator,
         string memory _tokenURI,
+        uint256 _amount,
         string memory title,
         string memory description,
         string memory artistName,
@@ -206,10 +221,12 @@ contract Naksh721NFT is ERC721URIStorage {
                         title,
                         '", "description": "',
                         description,
-                        '", "image": "',
-                        _tokenURI,
                         '", "tokenId": "',
                         tokenId,
+                        '", "Amount": "',
+                        _amount,
+                        '", "image": "',
+                        _tokenURI,
                         '", "artist name": "',
                         artistName,
                         '"}'
@@ -222,7 +239,7 @@ contract Naksh721NFT is ERC721URIStorage {
             abi.encodePacked("data:application/json;base64,", json)
         );
 
-        _mint(_creator, tokenId);
+        _mint(_creator, tokenId, _amount, "");
         _setTokenURI(tokenId, finalTokenUri);
 
         if (msg.sender == admin) {
@@ -234,6 +251,7 @@ contract Naksh721NFT is ERC721URIStorage {
         NFTData memory nftNew = NFTData(
             address(this),
             tokenId,
+            _amount,
             _tokenURI,
             title,
             description,
@@ -247,6 +265,7 @@ contract Naksh721NFT is ERC721URIStorage {
         emit Mint(
             _creator,
             tokenId,
+            _amount,
             _tokenURI,
             title,
             description,
@@ -265,87 +284,11 @@ contract Naksh721NFT is ERC721URIStorage {
     /**
      *This function is used to burn NFT, only Admin is allowed
      */
-    function burn(uint256 tokenId) public onlyArtistOrAdmin {
-        _burn(tokenId);
-    }
-
-    /**
-     *This function allows to bulk mint NFTs
-     */
-    function bulkMintByArtistorAdmin(
-        string[] memory _tokenURI,
-        string[] memory title,
-        string[] memory description,
-        string memory artistName,
-        string memory artistImg
+    function burn(
+        address _from,
+        uint256 _tokenId,
+        uint256 _amount
     ) public onlyArtistOrAdmin {
-        minter mintedBy;
-        uint256 length = title.length;
-
-        for (uint256 i = 0; i < length; ) {
-            _tokenIds.increment();
-            uint256 tokenId = _tokenIds.current();
-            tokenOwner[tokenId] = msg.sender;
-
-            string memory json = Base64.encode(
-                bytes(
-                    string(
-                        abi.encodePacked(
-                            '{"title": "',
-                            title[i],
-                            '", "description": "',
-                            description[i],
-                            '", "tokenId": "',
-                            tokenId,
-                            '", "image": "',
-                            _tokenURI[i],
-                            '", "artist name": "',
-                            artistName,
-                            '"}'
-                        )
-                    )
-                )
-            );
-
-            string memory finalTokenUri = string(
-                abi.encodePacked("data:application/json;base64,", json)
-            );
-
-            _mint(msg.sender, tokenId);
-            _setTokenURI(tokenId, finalTokenUri);
-            if (msg.sender == admin) {
-                mintedBy = minter.Admin;
-            } else {
-                mintedBy = minter.Artist;
-            }
-
-            NFTData memory nftNew = NFTData(
-                address(this),
-                tokenId,
-                _tokenURI[i],
-                title[i],
-                description[i],
-                artistData[msg.sender],
-                mintedBy
-            );
-            nftData[tokenId] = nftNew;
-            mintedNfts.push(nftNew);
-
-            creatorTokens[msg.sender].push(tokenId);
-
-            emit Mint(
-                msg.sender,
-                tokenId,
-                _tokenURI[i],
-                title[i],
-                description[i],
-                artistName,
-                artistImg
-            );
-
-            unchecked {
-                ++i;
-            }
-        }
+        _burn(_from, _tokenId, _amount);
     }
 }

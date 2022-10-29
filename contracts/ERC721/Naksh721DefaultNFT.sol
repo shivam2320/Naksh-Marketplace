@@ -10,12 +10,12 @@ pragma solidity ^0.8.7;
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
-import "../Structs.sol";
+import "./Structs.sol";
 
 /*
  * This is the Naksh Marketplace contract for Minting NFTs and Direct Sale + Auction.
  */
-contract NakshDefaultNFT is ERC721URIStorage {
+contract Naksh721DefaultNFT is ERC721URIStorage {
     // using SafeMath for uint256;
     mapping(address => bool) public creatorWhitelist;
     mapping(uint256 => address) private tokenOwner;
@@ -41,7 +41,6 @@ contract NakshDefaultNFT is ERC721URIStorage {
 
     uint256 constant FLOAT_HANDLER_TEN_4 = 10000;
 
-    address public owner;
     address _grantedOwner;
     address public admin;
     uint256 public sellerFee;
@@ -58,14 +57,6 @@ contract NakshDefaultNFT is ERC721URIStorage {
     NFTData[] internal mintedNfts;
 
     /**
-     * Modifier to allow only owner of the contract to perform certain actions
-     */
-    modifier onlyOwner() {
-        require(msg.sender == owner);
-        _;
-    }
-
-    /**
      * Modifier to allow only admin of the organization to perform certain actions
      */
     modifier onlyAdmin() {
@@ -73,10 +64,14 @@ contract NakshDefaultNFT is ERC721URIStorage {
         _;
     }
 
+    modifier onlyArtistOrAdmin() virtual {
+        require(creatorWhitelist[msg.sender] == true || msg.sender == admin);
+        _;
+    }
+
     constructor(
         artistDetails memory artist,
         CollectionDetails memory collection,
-        address _owner,
         address payable _admin,
         uint16[] memory _creatorFees,
         address payable[] memory _creators,
@@ -85,7 +80,6 @@ contract NakshDefaultNFT is ERC721URIStorage {
         artistData[artist.artistAddress] = artist;
         creatorWhitelist[artist.artistAddress] = true;
         collectionData[address(this)] = collection;
-        owner = _owner;
         admin = _admin;
         //Multiply all the three % variables by 100, to kepe it uniform
         orgFee = 500;
@@ -98,36 +92,12 @@ contract NakshDefaultNFT is ERC721URIStorage {
         sellerFeeInitial = 10000 - orgFeeInitial;
     }
 
-    /**
-     * @dev Owner can transfer the ownership of the contract to a new account (`_grantedOwner`).
-     * Can only be called by the current owner.
-     */
-    function grantContractOwnership(address newOwner) public virtual onlyOwner {
-        require(newOwner != address(0));
-        emit OwnershipGranted(newOwner);
-        _grantedOwner = newOwner;
-    }
-
     function getCollectionDetails()
         external
         view
         returns (CollectionDetails memory)
     {
         return collectionData[address(this)];
-    }
-
-    /**
-     * @dev Claims granted ownership of the contract for a new account (`_grantedOwner`).
-     * Can only be called by the currently granted owner.
-     */
-    function claimContractOwnership() public virtual {
-        require(
-            _grantedOwner == msg.sender,
-            "Ownable: caller is not the granted owner"
-        );
-        emit OwnershipTransferred(owner, _grantedOwner);
-        owner = _grantedOwner;
-        _grantedOwner = address(0);
     }
 
     /**
@@ -162,7 +132,7 @@ contract NakshDefaultNFT is ERC721URIStorage {
     function setRoyaltyPercentageFirstSale(
         uint256 _orgFeeInitial,
         uint256 _creatorFeeInitial
-    ) public onlyOwner returns (bool) {
+    ) public onlyAdmin returns (bool) {
         orgFeeInitial = _orgFeeInitial;
         sellerFeeInitial = _creatorFeeInitial;
         return true;
@@ -223,7 +193,7 @@ contract NakshDefaultNFT is ERC721URIStorage {
         string memory description,
         string memory artistName,
         string memory artistImg
-    ) public returns (uint256 _tokenId) {
+    ) public {
         minter mintedBy;
         _tokenIds.increment();
         uint256 tokenId = _tokenIds.current();
@@ -282,7 +252,6 @@ contract NakshDefaultNFT is ERC721URIStorage {
             artistName,
             artistImg
         );
-        return tokenId;
     }
 
     /**
@@ -295,7 +264,7 @@ contract NakshDefaultNFT is ERC721URIStorage {
     /**
      *This function is used to burn NFT, only Admin is allowed
      */
-    function burn(uint256 tokenId) public onlyAdmin {
+    function burn(uint256 tokenId) public onlyArtistOrAdmin {
         _burn(tokenId);
     }
 
@@ -308,9 +277,7 @@ contract NakshDefaultNFT is ERC721URIStorage {
         string[] memory description,
         string memory artistName,
         string memory artistImg
-    ) public returns (uint256[] memory _tokenId) {
-        uint256[] memory tokenIds;
-
+    ) public {
         uint256 length = title.length;
 
         for (uint256 i = 0; i < length; ) {
@@ -371,6 +338,5 @@ contract NakshDefaultNFT is ERC721URIStorage {
                 ++i;
             }
         }
-        return tokenIds;
     }
 }
