@@ -13,131 +13,114 @@ describe("Naksh Marketplace", () => {
   beforeEach(async () => {
     [owner, org, admin, addr1, addr2, addr3, creator] =
       await ethers.getSigners();
-    Naksh = await ethers.getContractFactory("Naksh721");
-    naksh = await Naksh.deploy("Naksh", "nk", org.address, admin.address);
+    Naksh = await ethers.getContractFactory("Naksh721NFT");
+    naksh = await Naksh.deploy(
+      ["Shivam", creator.address, "IMGURL"],
+      [
+        "Collection1",
+        "C1",
+        "Some about info",
+        "LOGO",
+        ["some uri", "false"],
+        ["INSTA", "FB", "TWITR", "Website"],
+      ],
+      admin.address,
+      [500, 600],
+      [addr1.address, addr2.address]
+    );
 
     await naksh.deployed();
   });
 
-  describe("Admin minting", () => {
-    it("Should mint by admin", async () => {
-      await expect(
-        naksh
-          .connect(addr1)
-          .mintByAdmin(creator.address, "tokenuri", "title", "desc", "artist")
-      ).to.be.reverted;
-      expect(await naksh.totalSupply()).to.equal(0);
-
-      expect(
-        await naksh
-          .connect(admin)
-          .mintByAdmin(creator.address, "tokenuri", "title", "desc", "artist")
-      );
-      expect(await naksh.totalSupply()).to.equal(1);
+  describe("Royalty fees", () => {
+    it("Should show royalty", async () => {
+      expect(await naksh.totalCreatorFees()).to.equal(1100);
+      expect(await naksh.orgFee()).to.equal(500);
+      expect(await naksh.orgFeeInitial()).to.equal(500);
+      expect(await naksh.TotalSplits()).to.equal(2);
+      expect(await naksh.sellerFeeInitial()).to.equal(9500);
+      expect(await naksh.sellerFee()).to.equal(8400);
+      // console.log(await naksh.getCollectionDetails());
+      // console.log(await naksh.fetchArtist(creator.address));
     });
   });
 
-  describe("Artist Minting", () => {
-    it("Should mint by artist", async () => {
-      await naksh.createArtist("name", creator.address, "img");
-      console.log(await naksh.fetchArtist(creator.address));
-      await naksh.connect(creator).mintByArtist("uri", "title", "desc", "name");
-      console.log(await naksh.tokenURI(1));
-
-      await naksh.connect(creator).setSale(1, 1);
-      expect(await naksh.isTokenFirstSale(1)).to.equal(false);
-      expect(await naksh.getSalePrice(1)).to.equal(1);
-
-      console.log(await naksh.getNFTonSale());
-    });
-  });
-
-  describe("Put on sale", () => {
-    it("Should put on sale", async () => {
-      expect(
-        await naksh
-          .connect(admin)
-          .mintByAdmin(
-            creator.address,
-            "data:application/json;base64,eyJ0aXRsZSI6ICJ0aXRsZSIsICJkZXNjcmlwdGlvbiI6ICJkZXNjIiwgImltYWdlIjogInVyaSIsICJhcnRpc3QgbmF",
-            "Nakshhhhhh",
-            "some descriptionnnnn",
-            "Artistttt"
-          )
-      );
-      await naksh.connect(creator).setSale(1, 1);
-      expect(await naksh.isTokenFirstSale(1)).to.equal(false);
-      expect(await naksh.getSalePrice(1)).to.equal(1);
-
-      console.log(await naksh.getNFTonSale());
-    });
-  });
-
-  describe("Buy NFT on sale", () => {
-    it("Should", async () => {
-      await naksh
-        .connect(admin)
-        .mintByAdmin(creator.address, "tokenuri", "title", "desc", "artist");
-      await naksh.connect(creator).setSale(1, 1);
-      await naksh.connect(addr1).buyTokenOnSale(1, naksh.address, {
-        value: ethers.utils.parseEther("1"),
-      });
-      expect(await naksh.isTokenFirstSale(1)).to.equal(true);
-    });
-  });
-
-  describe("Bulk Mint by Admin", () => {
-    it("Should", async () => {
-      await naksh
-        .connect(admin)
-        .bulkMintByAdmin(
-          [creator.address, addr1.address],
-          ["uri1", "uri2"],
-          ["title1", "title2"],
-          ["desc1", "desc2"],
-          ["name1", "name2"]
-        );
-    });
-  });
-
-  describe("Bulk Mint by Artist", () => {
-    it("Should", async () => {
-      await naksh.createArtist("name", creator.address, "img");
+  describe("Minting", () => {
+    it("Should single mint", async () => {
       await naksh
         .connect(creator)
-        .bulkMintByArtist(
-          ["uri1", "uri2"],
-          ["title1", "title2"],
-          ["desc1", "desc2"],
-          "name2"
+        .mintByArtistOrAdmin(
+          creator.address,
+          "tokenuri1",
+          "title1",
+          "desc1",
+          "artistName1",
+          "artistImg1"
         );
+      // console.log(await naksh.tokenURI(1));
+
+      await naksh
+        .connect(admin)
+        .mintByArtistOrAdmin(
+          creator.address,
+          "tokenuri2",
+          "title2",
+          "desc2",
+          "artistName2",
+          "artistImg2"
+        );
+
+      // console.log(await naksh.getNFTData(2));
+
+      expect(await naksh.totalSupply()).to.be.equals(2);
+      expect(await naksh.balanceOf(creator.address)).to.be.equals(2);
+      await naksh.connect(admin).burn(1);
+      await naksh.connect(creator).burn(2);
     });
   });
 
-  describe("Auction", () => {
-    it("Should start and end auction", async () => {
-      await naksh.createArtist("name", creator.address, "img");
-      await naksh.connect(creator).mintByArtist("uri", "title", "desc", "name");
-      await naksh.connect(creator).approve(naksh.address, 1);
-      await naksh.connect(creator).startAuction(1, 1, 60);
+  describe("Bulk Minting", () => {
+    it("Should bulk mint", async () => {
+      await naksh
+        .connect(creator)
+        .bulkMintByArtistorAdmin(
+          creator.address,
+          [
+            "tokenUri1",
+            "tokenUri2",
+            "tokenUri3",
+            "tokenUri4",
+            "tokenUri5",
+            "tokenUri6",
+          ],
+          ["titile1", "title2", "title3", "title4", "title5", "title6"],
+          ["desc1", "desc2", "desc3", "desc4", "desc5", "desc6"],
+          "shivam",
+          "imgg"
+        );
 
       await naksh
-        .connect(addr2)
-        .bid(1, { value: ethers.utils.parseEther("1") });
-      await naksh
-        .connect(addr3)
-        .bid(1, { value: ethers.utils.parseEther("2") });
-      await naksh
-        .connect(addr3)
-        .bid(1, { value: ethers.utils.parseEther("3") });
-      await naksh
-        .connect(addr3)
-        .bid(1, { value: ethers.utils.parseEther("4") });
+        .connect(admin)
+        .bulkMintByArtistorAdmin(
+          creator.address,
+          [
+            "tokenUri1",
+            "tokenUri2",
+            "tokenUri3",
+            "tokenUri4",
+            "tokenUri5",
+            "tokenUri6",
+          ],
+          ["titile1", "title2", "title3", "title4", "title5", "title6"],
+          ["desc1", "desc2", "desc3", "desc4", "desc5", "desc6"],
+          "shivam",
+          "imgg"
+        );
 
-      console.log("Bid History: ", await naksh.getBidHistory(1));
-
-      await expect(naksh.connect(creator).endAuction(1, naksh.address)).to.be
-        .reverted;
+      expect(await naksh.totalSupply()).to.be.equals(12);
+      expect(await naksh.balanceOf(creator.address)).to.be.equals(12);
+      await naksh.connect(admin).burn(11);
+      await naksh.connect(creator).burn(12);
     });
   });
 });

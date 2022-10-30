@@ -2,8 +2,8 @@
 pragma solidity ^0.8.7;
 
 /**
- * @title An NFT Marketplace contract for Naksh NFTs
- * @notice This is the Naksh Marketplace contract for Minting NFTs and Direct Sale + Auction.
+ * @title An NFT contract for Naksh ERC1155 NFTs
+ * @notice This is the Naksh NFT contract for Minting ERC1155 NFTs .
  * @dev Most function calls are currently implemented with access control
  */
 
@@ -13,18 +13,17 @@ import "@openzeppelin/contracts/utils/Base64.sol";
 import "./Structs.sol";
 
 /*
- * This is the Naksh Marketplace contract for Minting NFTs and Direct Sale + Auction.
+ * This is the Naksh NFT contract for Minting ERC1155 NFTs.
  */
 contract Naksh1155NFT is ERC1155 {
-    // using SafeMath for uint256;
-    mapping(address => bool) public creatorWhitelist;
-    mapping(uint256 => address) private tokenOwner;
-    mapping(address => uint256[]) private creatorTokens;
-    mapping(address => CollectionDetails) private collectionData;
+    mapping(address => bool) internal creatorWhitelist;
+    mapping(address => uint256[]) public creatorTokens;
     mapping(uint256 => string) private _tokenURIs;
-
-    mapping(uint256 => NFTData) public nftData;
+    mapping(uint256 => NFTData) internal nftData;
     mapping(address => artistDetails) internal artistData;
+
+    CollectionDetails internal collectionData;
+    NFTData[] internal mintedNfts;
 
     event WhitelistCreator(address _creator);
     event DelistCreator(address _creator);
@@ -51,14 +50,15 @@ contract Naksh1155NFT is ERC1155 {
     uint16[] public creatorFees;
     uint256 public totalCreatorFees;
     address payable[] public creators;
-    uint256 public TotalSplits = creators.length;
+    uint256 public TotalSplits;
     uint256 public sellerFeeInitial;
     uint256 public orgFeeInitial = 500;
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 
-    NFTData[] internal mintedNfts;
-
+    /**
+     * Modifier to allow only admin or artist of the organization to perform certain actions
+     */
     modifier onlyArtistOrAdmin() virtual {
         require(creatorWhitelist[msg.sender] == true || msg.sender == admin);
         _;
@@ -83,7 +83,7 @@ contract Naksh1155NFT is ERC1155 {
         symbol = collection.symbol;
         artistData[artist.artistAddress] = artist;
         creatorWhitelist[artist.artistAddress] = true;
-        collectionData[address(this)] = collection;
+        collectionData = collection;
         admin = _admin;
         //Multiply all the three % variables by 100, to kepe it uniform
 
@@ -94,6 +94,7 @@ contract Naksh1155NFT is ERC1155 {
         // Fees for first sale only
 
         sellerFeeInitial = 10000 - orgFeeInitial;
+        totalCreatorFees = _creators.length;
     }
 
     function getCollectionDetails()
@@ -101,7 +102,7 @@ contract Naksh1155NFT is ERC1155 {
         view
         returns (CollectionDetails memory)
     {
-        return collectionData[address(this)];
+        return collectionData;
     }
 
     /**
@@ -125,7 +126,7 @@ contract Naksh1155NFT is ERC1155 {
         return artistData[_artist];
     }
 
-    function TotalCreatorFees() internal returns (uint256) {
+    function TotalCreatorFees() private returns (uint256) {
         uint256 _length = creators.length;
         for (uint8 i; i < _length; ) {
             totalCreatorFees += creatorFees[i];
@@ -221,7 +222,6 @@ contract Naksh1155NFT is ERC1155 {
         minter mintedBy;
         _tokenIds.increment();
         uint256 tokenId = _tokenIds.current();
-        tokenOwner[tokenId] = _creator;
 
         string memory json = Base64.encode(
             bytes(
@@ -232,9 +232,9 @@ contract Naksh1155NFT is ERC1155 {
                         '", "description": "',
                         description,
                         '", "tokenId": "',
-                        tokenId,
+                        toString(tokenId),
                         '", "Amount": "',
-                        _amount,
+                        toString(_amount),
                         '", "image": "',
                         _tokenURI,
                         '", "artist name": "',
@@ -292,7 +292,7 @@ contract Naksh1155NFT is ERC1155 {
     }
 
     /**
-     *This function is used to burn NFT, only Admin is allowed
+     *This function is used to burn NFT, only Admin or Artist is allowed
      */
     function burn(
         address _from,
@@ -300,5 +300,27 @@ contract Naksh1155NFT is ERC1155 {
         uint256 _amount
     ) public onlyArtistOrAdmin {
         _burn(_from, _tokenId, _amount);
+    }
+
+    /**
+     * This function is used to convert uint to string
+     */
+    function toString(uint256 value) internal pure returns (string memory) {
+        if (value == 0) {
+            return "0";
+        }
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        return string(buffer);
     }
 }
