@@ -50,6 +50,7 @@ enum saleType {
 
 struct SaleData {
     NFTData nft;
+    address owner;
     bool isOnSale;
     bool tokenFirstSale;
     uint256 salePrice;

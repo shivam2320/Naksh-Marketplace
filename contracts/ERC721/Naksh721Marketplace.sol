@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./Naksh721NFT.sol";
+import "hardhat/console.sol";
 import "./Structs.sol";
 
 contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
@@ -15,7 +16,7 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
 
     uint256 internal constant FLOAT_HANDLER_TEN_4 = 10000;
 
-    mapping(address => mapping(uint256 => SaleData)) public saleData;
+    mapping(address => mapping(uint256 => SaleData)) internal saleData;
 
     event SalePriceSet(
         address _nft,
@@ -58,7 +59,7 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
     );
 
     /**
-     * Modifier to allow only owners of a token to perform certain actions
+     * Modifier to allow only owner of a particular token to perform certain actions
      */
     modifier onlyOwnerOf(address _nftAddress, uint256 _tokenId) {
         require(IERC721(_nftAddress).ownerOf(_tokenId) == msg.sender);
@@ -77,14 +78,8 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
         Naksh_org = payable(_newOrg);
     }
 
-    // function MintAndSetSaleByAdmin(address _nft, address _creator, string memory _tokenURI, string memory title,
-    // string memory description, string memory artistName, uint256 price) public {
-    //     Naksh721NFT(_nft).mintByAdmin(_creator, _tokenURI, title, description, artistName);
-
-    // }
-
     /**
-     * This function is used to set an NFT on sale.
+     * This function is used to set an ERC721 NFT on sale.
      * @dev The sale price set in this function will be used to perform the sale transaction
      * once the buyer wants to buy an NFT.
      */
@@ -103,6 +98,7 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
         IERC721(_nft).safeTransferFrom(msg.sender, address(this), _tokenId);
         saleData[_nft][_tokenId].nft = Naksh721NFT(_nft).getNFTData(_tokenId);
         saleData[_nft][_tokenId].isOnSale = true;
+        saleData[_nft][_tokenId].owner = msg.sender;
         saleData[_nft][_tokenId].salePrice = price;
         saleData[_nft][_tokenId].saletype = saleType.DirectSale;
         OnSaleNFTs.push(saleData[_nft][_tokenId]);
@@ -122,18 +118,39 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
 
     function updateSaleData(address _nftAddress, uint256 _tokenId) internal {
         uint256 leng = OnSaleNFTs.length;
+        saleData[_nftAddress][_tokenId].isOnSale = false;
+        SaleData memory _saleData;
+        _saleData = saleData[_nftAddress][_tokenId];
 
         for (uint256 i = 0; i < leng; ) {
             if (
                 OnSaleNFTs[i].nft.nftAddress == _nftAddress &&
                 OnSaleNFTs[i].nft.tokenId == _tokenId
             ) {
-                delete OnSaleNFTs[i];
+                _saleData = OnSaleNFTs[i];
+                OnSaleNFTs[i] = OnSaleNFTs[leng - 1];
+                OnSaleNFTs[leng - 1] = _saleData;
             }
+            OnSaleNFTs.pop();
             unchecked {
                 ++i;
             }
         }
+    }
+
+    function cancelSale(address _nft, uint256 _tokenId) public {
+        require(
+            saleData[_nft][_tokenId].owner == msg.sender,
+            "Only NFT Owner allowed"
+        );
+        require(
+            saleData[_nft][_tokenId].isOnSale == true,
+            "NFT is not on sale"
+        );
+
+        IERC721(_nft).safeTransferFrom(address(this), msg.sender, _tokenId);
+
+        updateSaleData(_nft, _tokenId);
     }
 
     function getSaleData(address _nft, uint256 _tokenId)
@@ -145,20 +162,9 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
             saleData[_nft][_tokenId].isOnSale == true,
             "NFT is not on sale"
         );
+        console.log(_nft);
+        console.log(_tokenId);
         return saleData[_nft][_tokenId];
-    }
-
-    function cancelSale(address _nft, uint256 _tokenId)
-        public
-        onlyOwnerOf(_nft, _tokenId)
-    {
-        require(
-            saleData[_nft][_tokenId].isOnSale == true,
-            "NFT is not on sale"
-        );
-        IERC721(_nft).safeTransferFrom(address(this), msg.sender, _tokenId);
-        delete saleData[_nft][_tokenId];
-        updateSaleData(_nft, _tokenId);
     }
 
     /**
@@ -169,6 +175,10 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
         payable
         nonReentrant
     {
+        require(
+            saleData[_nftAddress][_tokenId].isOnSale == true,
+            "NFT is not on sale"
+        );
         Naksh721NFT _nft = Naksh721NFT(_nftAddress);
         uint256 price = saleData[_nftAddress][_tokenId].salePrice;
         uint256 sellerFees = _nft.getSellerFee();
@@ -213,7 +223,6 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
 
         Naksh_org.transfer(toPlatform);
 
-        delete saleData[_nftAddress][_tokenId];
         updateSaleData(_nftAddress, _tokenId);
 
         emit Sold(
@@ -264,7 +273,11 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
         address _nft,
         uint256 _tokenId,
         uint256 price
-    ) public onlyOwnerOf(_nft, _tokenId) {
+    ) public {
+        require(
+            saleData[_nft][_tokenId].owner == msg.sender,
+            "Only NFT Owner allowed"
+        );
         require(
             saleData[_nft][_tokenId].isOnSale == true,
             "NFT is not on sale"
@@ -433,7 +446,6 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
             );
         }
 
-        delete saleData[_nftAddress][_tokenId];
         updateSaleData(_nftAddress, _tokenId);
 
         emit EndedAuction(

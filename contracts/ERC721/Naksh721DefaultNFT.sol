@@ -15,7 +15,7 @@ import "./Structs.sol";
 /*
  * This is the Naksh NFT contract for Minting ERC721 NFTs.
  */
-contract Naksh721NFT is ERC721URIStorage {
+contract Naksh721DefaultNFT is ERC721URIStorage {
     mapping(address => uint256[]) public creatorTokens;
     mapping(uint256 => NFTData) internal nftData;
     mapping(address => artistDetails) internal artistData;

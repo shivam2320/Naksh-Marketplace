@@ -32,6 +32,7 @@ contract Naksh1155Marketplace is Ownable, ERC1155Holder, ReentrancyGuard {
         address _nft,
         address _seller,
         address _buyer,
+        uint256 _price,
         uint256 _amount,
         uint256 _tokenId,
         uint256 timestamp
@@ -149,13 +150,32 @@ contract Naksh1155Marketplace is Ownable, ERC1155Holder, ReentrancyGuard {
         uint256 _amount,
         address _ownerAdr
     ) internal {
-        SaleData storage _saleData;
-        _saleData = saleData[_nftAddress][_tokenId][_ownerAdr];
-        if ((_saleData.onSaleAmount - _amount) == 0) {
-            _saleData.isOnSale = false;
-            _saleData.onSaleAmount = 0;
+        if (
+            (saleData[_nftAddress][_tokenId][_ownerAdr].onSaleAmount -
+                _amount) == 0
+        ) {
+            saleData[_nftAddress][_tokenId][_ownerAdr].isOnSale = false;
+            saleData[_nftAddress][_tokenId][_ownerAdr].onSaleAmount = 0;
+            SaleData memory _saleData;
+            _saleData = saleData[_nftAddress][_tokenId][_ownerAdr];
+
+            for (uint256 i = 0; i < OnSaleNFTs.length; ) {
+                if (
+                    OnSaleNFTs[i].nft.nftAddress == _nftAddress &&
+                    OnSaleNFTs[i].nft.tokenId == _tokenId &&
+                    OnSaleNFTs[i]._owner == _ownerAdr
+                ) {
+                    _saleData = OnSaleNFTs[i];
+                    OnSaleNFTs[i] = OnSaleNFTs[OnSaleNFTs.length - 1];
+                    OnSaleNFTs[OnSaleNFTs.length - 1] = _saleData;
+                }
+                OnSaleNFTs.pop();
+                unchecked {
+                    ++i;
+                }
+            }
         } else {
-            _saleData.onSaleAmount -= _amount;
+            saleData[_nftAddress][_tokenId][_ownerAdr].onSaleAmount -= _amount;
         }
     }
 
@@ -174,6 +194,7 @@ contract Naksh1155Marketplace is Ownable, ERC1155Holder, ReentrancyGuard {
     ) public isListed(_nft, _tokenId, msg.sender) {
         SaleData storage _saleData;
         _saleData = saleData[_nft][_tokenId][msg.sender];
+
         require(_saleData.onSaleAmount >= _amount, "Not enough amount on sale");
         IERC1155(_nft).safeTransferFrom(
             address(this),
@@ -195,18 +216,18 @@ contract Naksh1155Marketplace is Ownable, ERC1155Holder, ReentrancyGuard {
         address _ownerAddr,
         uint256 _amount
     ) public payable {
-        Naksh1155NFT _nft = Naksh1155NFT(_nftAddress);
-
         SaleData storage _saleData;
         _saleData = saleData[_nftAddress][_tokenId][_ownerAddr];
         require(
             saleData[_nftAddress][_tokenId][_ownerAddr].onSaleAmount >= _amount,
             "Not enough amount on sale"
         );
-        uint256 sellerFees = _nft.getSellerFee();
-        uint16[] memory creatorRoyalty = _nft.getCreatorFees();
-        uint256 totalCreatorFees = _nft.getTotalCreatorFees();
-        uint256 platformFees = _nft.orgFee();
+        uint256 sellerFees = Naksh1155NFT(_nftAddress).getSellerFee();
+        uint16[] memory creatorRoyalty = Naksh1155NFT(_nftAddress)
+            .getCreatorFees();
+        uint256 totalCreatorFees = Naksh1155NFT(_nftAddress)
+            .getTotalCreatorFees();
+        uint256 platformFees = Naksh1155NFT(_nftAddress).orgFee();
 
         require(
             msg.value >=
@@ -230,21 +251,24 @@ contract Naksh1155Marketplace is Ownable, ERC1155Holder, ReentrancyGuard {
         if (
             saleData[_nftAddress][_tokenId][_ownerAddr].tokenFirstSale == false
         ) {
-            platformFees = _nft.orgFeeInitial();
-            sellerFees = _nft.sellerFeeInitial();
+            platformFees = Naksh1155NFT(_nftAddress).orgFeeInitial();
+            sellerFees = Naksh1155NFT(_nftAddress).sellerFeeInitial();
             // No creator royalty/royalties when artist is minting for the first time
             totalCreatorFees = 0;
 
             saleData[_nftAddress][_tokenId][_ownerAddr].tokenFirstSale = true;
         } else {
-            totalCreatorFees = _nft.getTotalCreatorFees();
+            totalCreatorFees = Naksh1155NFT(_nftAddress).getTotalCreatorFees();
         }
         payable(tOwner).transfer(
             (msg.value * sellerFees) / FLOAT_HANDLER_TEN_4
         );
 
         if (totalCreatorFees != 0) {
-            splitCreatorRoyalty(address(_nft), creatorRoyalty);
+            splitCreatorRoyalty(
+                address(Naksh1155NFT(_nftAddress)),
+                creatorRoyalty
+            );
         }
 
         Naksh_org.transfer((msg.value * platformFees) / FLOAT_HANDLER_TEN_4);
@@ -256,6 +280,7 @@ contract Naksh1155Marketplace is Ownable, ERC1155Holder, ReentrancyGuard {
             _ownerAddr,
             msg.sender,
             msg.value,
+            _amount,
             _tokenId,
             block.timestamp
         );
@@ -297,11 +322,10 @@ contract Naksh1155Marketplace is Ownable, ERC1155Holder, ReentrancyGuard {
     function changePrice(
         address _nft,
         uint256 _tokenId,
-        address _ownerAddr,
         uint256 price
-    ) public onlyOwnerOf(_nft, _tokenId) {
+    ) public {
         SaleData storage _saleData;
-        _saleData = saleData[_nft][_tokenId][_ownerAddr];
+        _saleData = saleData[_nft][_tokenId][msg.sender];
         require(_saleData.isOnSale == true, "NFT is not on sale");
         require(
             price > 0,
