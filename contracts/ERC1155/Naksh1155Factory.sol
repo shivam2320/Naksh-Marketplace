@@ -2,8 +2,8 @@
 pragma solidity ^0.8.7;
 
 /**
- * @title An NFT Factory contract for Naksh NFTs
- * @notice This is the NFT Factory contract for deploying new NFT collections.
+ * @title An NFT Factory contract for Naksh ERC1155 NFTs
+ * @notice This is the NFT Factory contract for deploying new ERC1155 NFT collections.
  */
 
 import "./Naksh1155NFT.sol";
@@ -42,21 +42,12 @@ contract Naksh1155Factory {
     ) external returns (address) {
         require(_creatorFees.length <= 6, "Maximum 6 creators allowed");
 
-        uint256 _totalCreatorFees;
-        uint256 _length = _creators.length;
-        for (uint8 i; i < _length; ) {
-            _totalCreatorFees += _creatorFees[i];
-            unchecked {
-                ++i;
-            }
-        }
         Naksh1155NFT nft = new Naksh1155NFT(
             artist,
             collection,
             _admin,
             _creatorFees,
-            _creators,
-            _totalCreatorFees
+            _creators
         );
 
         artistCollections[msg.sender].push(address(nft));

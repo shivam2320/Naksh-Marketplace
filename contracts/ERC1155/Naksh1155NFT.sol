@@ -47,13 +47,13 @@ contract Naksh1155NFT is ERC1155 {
     string public symbol;
     address public admin;
     uint256 public sellerFee;
-    uint256 public orgFee;
+    uint256 public orgFee = 500;
     uint16[] public creatorFees;
     uint256 public totalCreatorFees;
     address payable[] public creators;
     uint256 public TotalSplits = creators.length;
     uint256 public sellerFeeInitial;
-    uint256 public orgFeeInitial;
+    uint256 public orgFeeInitial = 500;
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 
@@ -77,8 +77,7 @@ contract Naksh1155NFT is ERC1155 {
         CollectionDetails memory collection,
         address payable _admin,
         uint16[] memory _creatorFees,
-        address payable[] memory _creators,
-        uint256 _totalCreatorFees
+        address payable[] memory _creators
     ) ERC1155("") {
         name = collection.name;
         symbol = collection.symbol;
@@ -87,13 +86,13 @@ contract Naksh1155NFT is ERC1155 {
         collectionData[address(this)] = collection;
         admin = _admin;
         //Multiply all the three % variables by 100, to kepe it uniform
-        orgFee = 500;
+
         creatorFees = _creatorFees;
         creators = _creators;
-        totalCreatorFees = _totalCreatorFees;
+        totalCreatorFees = TotalCreatorFees();
         sellerFee = 10000 - orgFee - totalCreatorFees;
         // Fees for first sale only
-        orgFeeInitial = 500;
+
         sellerFeeInitial = 10000 - orgFeeInitial;
     }
 
@@ -124,6 +123,17 @@ contract Naksh1155NFT is ERC1155 {
             "Given address is not artist"
         );
         return artistData[_artist];
+    }
+
+    function TotalCreatorFees() internal returns (uint256) {
+        uint256 _length = creators.length;
+        for (uint8 i; i < _length; ) {
+            totalCreatorFees += creatorFees[i];
+            unchecked {
+                ++i;
+            }
+        }
+        return totalCreatorFees;
     }
 
     /** @dev Calculate the royalty distribution for organisation/platform and the

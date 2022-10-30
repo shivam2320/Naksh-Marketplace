@@ -15,8 +15,21 @@ describe("Naksh Marketplace", () => {
   beforeEach(async () => {
     [owner, org, admin, addr1, addr2, addr3, creator] =
       await ethers.getSigners();
-    Naksh = await ethers.getContractFactory("NakshNFTMarketplace");
-    naksh = await Naksh.deploy("Naksh", "nk", org.address, admin.address);
+    Naksh = await ethers.getContractFactory("Naksh721NFT");
+    naksh = await Naksh.deploy(
+      ["Shivam", creator.address, "IMGURL"],
+      [
+        "Collection1",
+        "C1",
+        "Some about info",
+        "LOGO",
+        ["some uri", "false"],
+        ["INSTA", "FB", "TWITR", "Website"],
+      ],
+      admin.address,
+      [500],
+      [creator.address]
+    );
 
     await naksh.deployed();
   });

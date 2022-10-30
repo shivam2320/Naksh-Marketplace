@@ -209,8 +209,9 @@ contract Naksh1155Marketplace is Ownable, ERC1155Holder, ReentrancyGuard {
         uint256 platformFees = _nft.orgFee();
 
         require(
-            (_amount * msg.value) >=
-                saleData[_nftAddress][_tokenId][_ownerAddr].salePrice,
+            msg.value >=
+                (_amount *
+                    saleData[_nftAddress][_tokenId][_ownerAddr].salePrice),
             "price doesn't equal salePrice"
         );
         address tOwner = saleData[_nftAddress][_tokenId][_ownerAddr]
@@ -239,16 +240,14 @@ contract Naksh1155Marketplace is Ownable, ERC1155Holder, ReentrancyGuard {
             totalCreatorFees = _nft.getTotalCreatorFees();
         }
         payable(tOwner).transfer(
-            (_amount * (msg.value * sellerFees)) / FLOAT_HANDLER_TEN_4
+            (msg.value * sellerFees) / FLOAT_HANDLER_TEN_4
         );
 
         if (totalCreatorFees != 0) {
-            splitCreatorRoyalty(address(_nft), creatorRoyalty, _amount);
+            splitCreatorRoyalty(address(_nft), creatorRoyalty);
         }
 
-        Naksh_org.transfer(
-            (_amount * (msg.value * platformFees)) / FLOAT_HANDLER_TEN_4
-        );
+        Naksh_org.transfer((msg.value * platformFees) / FLOAT_HANDLER_TEN_4);
 
         updateSaleData(_nftAddress, _tokenId, _amount, _ownerAddr);
 
@@ -264,15 +263,14 @@ contract Naksh1155Marketplace is Ownable, ERC1155Holder, ReentrancyGuard {
 
     function splitCreatorRoyalty(
         address _nftAddress,
-        uint16[] memory creatorRoyalty,
-        uint256 _amount
+        uint16[] memory creatorRoyalty
     ) internal {
         Naksh1155NFT _nft = Naksh1155NFT(_nftAddress);
         uint256 _TotalSplits = _nft.TotalSplits();
         uint256[] memory toCreators;
         for (uint8 i = 0; i < _TotalSplits; ) {
             toCreators[i] =
-                (_amount * (msg.value * creatorRoyalty[i])) /
+                (msg.value * creatorRoyalty[i]) /
                 FLOAT_HANDLER_TEN_4;
             payable(_nft.creators(i)).transfer(toCreators[i]);
         }

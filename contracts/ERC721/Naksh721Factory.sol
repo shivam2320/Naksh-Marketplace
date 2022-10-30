@@ -2,13 +2,13 @@
 pragma solidity ^0.8.7;
 
 /**
- * @title An NFT Factory contract for Naksh NFTs
- * @notice This is the NFT Factory contract for deploying new NFT collections.
+ * @title An NFT Factory contract for Naksh ERC721 NFTs
+ * @notice This is the NFT Factory contract for deploying new ERC721 NFT collections.
  */
 
 import "./Naksh721NFT.sol";
 
-contract NakshFactory {
+contract Naksh721Factory {
     /**
      * Mapping to get deployed collection addresses by a artist
      */
@@ -42,21 +42,12 @@ contract NakshFactory {
     ) external returns (address) {
         require(_creatorFees.length <= 6, "Maximum 6 creators allowed");
 
-        uint256 _totalCreatorFees;
-        uint256 _length = _creators.length;
-        for (uint8 i; i < _length; ) {
-            _totalCreatorFees += _creatorFees[i];
-            unchecked {
-                ++i;
-            }
-        }
         Naksh721NFT nft = new Naksh721NFT(
             artist,
             collection,
             _admin,
             _creatorFees,
-            _creators,
-            _totalCreatorFees
+            _creators
         );
 
         artistCollections[msg.sender].push(address(nft));
