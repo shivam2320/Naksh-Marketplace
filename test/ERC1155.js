@@ -1,7 +1,7 @@
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
 
-describe("Naksh ERC721 NFT", () => {
+describe("Naksh ERC1155 NFT", () => {
   let org;
   let admin;
   let addr1;
@@ -11,9 +11,8 @@ describe("Naksh ERC721 NFT", () => {
   let naksh;
 
   beforeEach(async () => {
-    [owner, org, admin, addr1, addr2, addr3, creator] =
-      await ethers.getSigners();
-    Naksh = await ethers.getContractFactory("Naksh721NFT");
+    [owner, org, admin, addr1, addr2, creator] = await ethers.getSigners();
+    Naksh = await ethers.getContractFactory("Naksh1155NFT");
     naksh = await Naksh.deploy(
       ["Shivam", creator.address, "IMGURL"],
       [
@@ -52,6 +51,7 @@ describe("Naksh ERC721 NFT", () => {
         .mintByArtistOrAdmin(
           creator.address,
           "tokenuri1",
+          10,
           "title1",
           "desc1",
           "artistName1",
@@ -64,6 +64,7 @@ describe("Naksh ERC721 NFT", () => {
         .mintByArtistOrAdmin(
           creator.address,
           "tokenuri2",
+          20,
           "title2",
           "desc2",
           "artistName2",
@@ -73,54 +74,9 @@ describe("Naksh ERC721 NFT", () => {
       // console.log(await naksh.getNFTData(2));
 
       expect(await naksh.totalSupply()).to.be.equals(2);
-      expect(await naksh.balanceOf(creator.address)).to.be.equals(2);
-      await naksh.connect(admin).burn(1);
-      await naksh.connect(creator).burn(2);
-    });
-  });
-
-  describe("Bulk Minting", () => {
-    it("Should bulk mint", async () => {
-      await naksh
-        .connect(creator)
-        .bulkMintByArtistorAdmin(
-          creator.address,
-          [
-            "tokenUri1",
-            "tokenUri2",
-            "tokenUri3",
-            "tokenUri4",
-            "tokenUri5",
-            "tokenUri6",
-          ],
-          ["titile1", "title2", "title3", "title4", "title5", "title6"],
-          ["desc1", "desc2", "desc3", "desc4", "desc5", "desc6"],
-          "shivam",
-          "imgg"
-        );
-
-      await naksh
-        .connect(admin)
-        .bulkMintByArtistorAdmin(
-          creator.address,
-          [
-            "tokenUri1",
-            "tokenUri2",
-            "tokenUri3",
-            "tokenUri4",
-            "tokenUri5",
-            "tokenUri6",
-          ],
-          ["titile1", "title2", "title3", "title4", "title5", "title6"],
-          ["desc1", "desc2", "desc3", "desc4", "desc5", "desc6"],
-          "shivam",
-          "imgg"
-        );
-
-      expect(await naksh.totalSupply()).to.be.equals(12);
-      expect(await naksh.balanceOf(creator.address)).to.be.equals(12);
-      await naksh.connect(admin).burn(11);
-      await naksh.connect(creator).burn(12);
+      expect(await naksh.balanceOf(creator.address, 1)).to.be.equals(10);
+      await naksh.connect(admin).burn(creator.address, 1, 5);
+      await naksh.connect(creator).burn(creator.address, 2, 10);
     });
   });
 });

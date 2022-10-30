@@ -94,7 +94,7 @@ contract Naksh1155NFT is ERC1155 {
         // Fees for first sale only
 
         sellerFeeInitial = 10000 - orgFeeInitial;
-        totalCreatorFees = _creators.length;
+        TotalSplits = _creators.length;
     }
 
     function getCollectionDetails()
