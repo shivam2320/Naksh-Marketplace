@@ -38,6 +38,8 @@ contract Naksh1155Marketplace is Ownable, ERC1155Holder, ReentrancyGuard {
         uint256 timestamp
     );
 
+    event Cancelled(address _nft, uint256 _tokenId, address _seller);
+
     /**
      * Modifier to allow only owners of a token to perform certain actions
      */
@@ -205,6 +207,7 @@ contract Naksh1155Marketplace is Ownable, ERC1155Holder, ReentrancyGuard {
         );
 
         updateSaleData(_nft, _tokenId, _amount, msg.sender);
+        emit Cancelled(_nft, _tokenId, msg.sender);
     }
 
     /**

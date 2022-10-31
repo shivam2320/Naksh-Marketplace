@@ -34,6 +34,7 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
         uint256 _tokenId,
         uint256 timestamp
     );
+    event Cancelled(address _nft, uint256 _tokenId, address _seller);
     event StartedAuction(
         address _nft,
         uint256 currentTimestamp,
@@ -151,6 +152,7 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
         IERC721(_nft).safeTransferFrom(address(this), msg.sender, _tokenId);
 
         updateSaleData(_nft, _tokenId);
+        emit Cancelled(_nft, _tokenId, msg.sender);
     }
 
     function getSaleData(address _nft, uint256 _tokenId)

@@ -37,7 +37,8 @@ contract Naksh1155NFT is ERC1155 {
         string title,
         string description,
         string artistName,
-        string artistImg
+        string artistImg,
+        bool isVideo
     );
 
     uint256 constant FLOAT_HANDLER_TEN_4 = 10000;
@@ -205,6 +206,61 @@ contract Naksh1155NFT is ERC1155 {
         return nftData[_tokenId];
     }
 
+    function constructJSON(
+        string memory title,
+        string memory description,
+        string memory _imgURI,
+        uint256 _tokenId,
+        string memory artistName,
+        bool isVideo
+    ) internal pure returns (string memory) {
+        if (isVideo == false) {
+            string memory json = Base64.encode(
+                bytes(
+                    string(
+                        abi.encodePacked(
+                            '{"title": "',
+                            title,
+                            '", "description": "',
+                            description,
+                            '", "image": "',
+                            _imgURI,
+                            '", "tokenId": "',
+                            toString(_tokenId),
+                            '", "artist_name": "',
+                            artistName,
+                            '"}'
+                        )
+                    )
+                )
+            );
+            return json;
+        } else {
+            string memory json = Base64.encode(
+                bytes(
+                    string(
+                        abi.encodePacked(
+                            '{"title": "',
+                            title,
+                            '", "description": "',
+                            description,
+                            '", "image": "',
+                            _imgURI,
+                            '", "tokenId": "',
+                            toString(_tokenId),
+                            '", "artist_name": "',
+                            artistName,
+                            '", "animation_url": "',
+                            _imgURI,
+                            '"}'
+                        )
+                    )
+                )
+            );
+            return json;
+        }
+    }
+
     /**
      * This function is used to mint an NFT for the Naksh marketplace.
      * @dev The basic information related to the NFT needs to be passeed to this function,
@@ -212,45 +268,32 @@ contract Naksh1155NFT is ERC1155 {
      */
     function mintByArtistOrAdmin(
         address _creator,
-        string memory _tokenURI,
+        string memory _imgURI,
         uint256 _amount,
         string memory title,
         string memory description,
         string memory artistName,
-        string memory artistImg
+        string memory artistImg,
+        bool isVideo
     ) public onlyArtistOrAdmin {
         minter mintedBy;
         _tokenIds.increment();
-        uint256 tokenId = _tokenIds.current();
 
-        string memory json = Base64.encode(
-            bytes(
-                string(
-                    abi.encodePacked(
-                        '{"title": "',
-                        title,
-                        '", "description": "',
-                        description,
-                        '", "tokenId": "',
-                        toString(tokenId),
-                        '", "Amount": "',
-                        toString(_amount),
-                        '", "image": "',
-                        _tokenURI,
-                        '", "artist name": "',
-                        artistName,
-                        '"}'
-                    )
-                )
-            )
+        string memory json = constructJSON(
+            title,
+            description,
+            _imgURI,
+            _tokenIds.current(),
+            artistName,
+            isVideo
         );
 
         string memory finalTokenUri = string(
             abi.encodePacked("data:application/json;base64,", json)
         );
 
-        _mint(_creator, tokenId, _amount, "");
-        _setTokenURI(tokenId, finalTokenUri);
+        _mint(_creator, _tokenIds.current(), _amount, "");
+        _setTokenURI(_tokenIds.current(), finalTokenUri);
 
         if (msg.sender == admin) {
             mintedBy = minter.Admin;
@@ -260,27 +303,29 @@ contract Naksh1155NFT is ERC1155 {
 
         NFTData memory nftNew = NFTData(
             address(this),
-            tokenId,
+            _tokenIds.current(),
             _amount,
-            _tokenURI,
+            _imgURI,
             title,
             description,
+            isVideo,
             artistData[_creator],
             mintedBy
         );
-        nftData[tokenId] = nftNew;
+        nftData[_tokenIds.current()] = nftNew;
         mintedNfts.push(nftNew);
 
-        creatorTokens[_creator].push(tokenId);
+        creatorTokens[_creator].push(_tokenIds.current());
         emit Mint(
             _creator,
-            tokenId,
+            _tokenIds.current(),
             _amount,
-            _tokenURI,
+            _imgURI,
             title,
             description,
             artistName,
-            artistImg
+            artistImg,
+            isVideo
         );
     }
 

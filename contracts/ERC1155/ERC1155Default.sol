@@ -2,26 +2,28 @@
 pragma solidity ^0.8.7;
 
 /**
- * @title An NFT  contract for Naksh ERC721 NFTs
- * @notice This is the Naksh NFT contract for Minting ERC721 NFTs .
+ * @title An NFT contract for Naksh ERC1155 NFTs
+ * @notice This is the Naksh NFT contract for Minting ERC1155 NFTs .
  * @dev Most function calls are currently implemented with access control
  */
 
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 import "./Structs.sol";
 
 /*
- * This is the Naksh NFT contract for Minting ERC721 NFTs.
+ * This is the Naksh NFT contract for Minting ERC1155 NFTs.
  */
-contract Naksh721DefaultNFT is ERC721URIStorage {
+contract Naksh1155DefaultNFT is ERC1155 {
+    mapping(address => bool) internal creatorWhitelist;
     mapping(address => uint256[]) public creatorTokens;
+    mapping(uint256 => string) private _tokenURIs;
     mapping(uint256 => NFTData) internal nftData;
     mapping(address => artistDetails) internal artistData;
 
-    NFTData[] internal mintedNfts;
     CollectionDetails internal collectionData;
+    NFTData[] internal mintedNfts;
 
     event WhitelistCreator(address _creator);
     event DelistCreator(address _creator);
@@ -30,6 +32,7 @@ contract Naksh721DefaultNFT is ERC721URIStorage {
     event Mint(
         address creator,
         uint256 tokenId,
+        uint256 amount,
         string tokenURI,
         string title,
         string description,
@@ -38,8 +41,10 @@ contract Naksh721DefaultNFT is ERC721URIStorage {
         bool isVideo
     );
 
-    uint256 internal constant FLOAT_HANDLER_TEN_4 = 10000;
+    uint256 constant FLOAT_HANDLER_TEN_4 = 10000;
 
+    string public name;
+    string public symbol;
     address public admin;
     uint256 public sellerFee;
     uint256 public orgFee = 500;
@@ -53,10 +58,18 @@ contract Naksh721DefaultNFT is ERC721URIStorage {
     Counters.Counter private _tokenIds;
 
     /**
+     * Modifier to allow only admin or artist of the organization to perform certain actions
+     */
+    modifier onlyArtistOrAdmin() virtual {
+        require(creatorWhitelist[msg.sender] == true || msg.sender == admin);
+        _;
+    }
+
+    /**
      * Modifier to allow only admin of the organization to perform certain actions
      */
     modifier onlyAdmin() {
-        require(msg.sender == admin, "Only Admin allowed");
+        require(msg.sender == admin);
         _;
     }
 
@@ -66,16 +79,21 @@ contract Naksh721DefaultNFT is ERC721URIStorage {
         address payable _admin,
         uint16[] memory _creatorFees,
         address payable[] memory _creators
-    ) ERC721(collection.name, collection.symbol) {
+    ) ERC1155("") {
+        name = collection.name;
+        symbol = collection.symbol;
         artistData[artist.artistAddress] = artist;
+        creatorWhitelist[artist.artistAddress] = true;
         collectionData = collection;
         admin = _admin;
         //Multiply all the three % variables by 100, to kepe it uniform
+
         creatorFees = _creatorFees;
         creators = _creators;
         totalCreatorFees = TotalCreatorFees();
         sellerFee = 10000 - orgFee - totalCreatorFees;
         // Fees for first sale only
+
         sellerFeeInitial = 10000 - orgFeeInitial;
         TotalSplits = _creators.length;
     }
@@ -91,7 +109,7 @@ contract Naksh721DefaultNFT is ERC721URIStorage {
     /**
      *@dev Current admin can transfer admin rights to a new account.
      */
-    function grantAdminRights(address newAdmin) external onlyAdmin {
+    function grantAdminRights(address newAdmin) public virtual onlyAdmin {
         require(newAdmin != address(0));
         admin = newAdmin;
     }
@@ -102,7 +120,10 @@ contract Naksh721DefaultNFT is ERC721URIStorage {
         returns (artistDetails memory)
     {
         require(_artist != address(0));
-
+        require(
+            creatorWhitelist[_artist] == true,
+            "Given address is not artist"
+        );
         return artistData[_artist];
     }
 
@@ -141,7 +162,7 @@ contract Naksh721DefaultNFT is ERC721URIStorage {
      * sellerFeeInitial - % of fees for seller on the first sale
      */
     function getRoyalties()
-        external
+        public
         view
         returns (
             uint256 _orgFee,
@@ -160,42 +181,29 @@ contract Naksh721DefaultNFT is ERC721URIStorage {
      * The values are multipleied by 100, in order to work easily
      * with floating point percentages.
      */
-    function getSellerFee() external view returns (uint256) {
+    function getSellerFee() public view returns (uint256) {
         //Returning % multiplied by 100 to keep it uniform across contract
         return sellerFee;
     }
 
-    /**
-     * @dev This function is used to get the creators percentage.
-     * This refers to the amount of money that would be distributed to the creators
-     * after the reduction of royalty and platform fees.
-     * The values are multipleied by 100, in order to work easily
-     * with floating point percentages.
-     */
-    function getTotalCreatorFees() external view returns (uint256) {
+    function getTotalCreatorFees() public view returns (uint256) {
         return totalCreatorFees;
     }
 
-    function getCreatorFees() external view returns (uint16[] memory) {
+    function getCreatorFees() public view returns (uint16[] memory) {
         return creatorFees;
     }
 
-    /**
-     * @dev This function is used to get the details of particular NFT by passing its tokenId.
-     */
-    function getNFTData(uint256 _tokenId)
-        external
-        view
-        returns (NFTData memory)
-    {
-        return nftData[_tokenId];
+    function uri(uint256 tokenId) public view override returns (string memory) {
+        return (_tokenURIs[tokenId]);
     }
 
-    /**
-     * @dev This function is used to get the details of minted NFTs.
-     */
-    function getMintedNFTs() external view returns (NFTData[] memory) {
-        return mintedNfts;
+    function _setTokenURI(uint256 tokenId, string memory tokenURI) private {
+        _tokenURIs[tokenId] = tokenURI;
+    }
+
+    function getNFTData(uint256 _tokenId) public view returns (NFTData memory) {
+        return nftData[_tokenId];
     }
 
     function constructJSON(
@@ -261,16 +269,15 @@ contract Naksh721DefaultNFT is ERC721URIStorage {
     function mintByArtistOrAdmin(
         address _creator,
         string memory _imgURI,
+        uint256 _amount,
         string memory title,
         string memory description,
         string memory artistName,
         string memory artistImg,
         bool isVideo
-    ) external {
+    ) public {
         minter mintedBy;
-
         _tokenIds.increment();
-        uint256 tokenId = _tokenIds.current();
 
         string memory json = constructJSON(
             title,
@@ -285,8 +292,8 @@ contract Naksh721DefaultNFT is ERC721URIStorage {
             abi.encodePacked("data:application/json;base64,", json)
         );
 
-        _mint(_creator, tokenId);
-        _setTokenURI(tokenId, finalTokenUri);
+        _mint(_creator, _tokenIds.current(), _amount, "");
+        _setTokenURI(_tokenIds.current(), finalTokenUri);
 
         if (msg.sender == admin) {
             mintedBy = minter.Admin;
@@ -296,7 +303,8 @@ contract Naksh721DefaultNFT is ERC721URIStorage {
 
         NFTData memory nftNew = NFTData(
             address(this),
-            tokenId,
+            _tokenIds.current(),
+            _amount,
             _imgURI,
             title,
             description,
@@ -304,13 +312,14 @@ contract Naksh721DefaultNFT is ERC721URIStorage {
             artistData[_creator],
             mintedBy
         );
-        nftData[tokenId] = nftNew;
+        nftData[_tokenIds.current()] = nftNew;
         mintedNfts.push(nftNew);
 
-        creatorTokens[_creator].push(tokenId);
+        creatorTokens[_creator].push(_tokenIds.current());
         emit Mint(
             _creator,
-            tokenId,
+            _tokenIds.current(),
+            _amount,
             _imgURI,
             title,
             description,
@@ -323,87 +332,19 @@ contract Naksh721DefaultNFT is ERC721URIStorage {
     /**
      * This returns the total number of NFTs minted on the platform
      */
-    function totalSupply() external view virtual returns (uint256) {
+    function totalSupply() public view virtual returns (uint256) {
         return _tokenIds.current();
     }
 
     /**
      *This function is used to burn NFT, only Admin or Artist is allowed
      */
-    function burn(uint256 tokenId) external onlyAdmin {
-        _burn(tokenId);
-    }
-
-    /**
-     * This function is used to bulk mint NFTs for the Naksh marketplace.
-     * @dev The basic information related to the NFT needs to be passeed to this function,
-     * in order to store it on chain to avoid disputes in future.
-     */
-    function bulkMintByArtistorAdmin(
-        address _creator,
-        string[] memory _imgURI,
-        string[] memory title,
-        string[] memory description,
-        string memory artistName,
-        string memory artistImg,
-        bool[] memory isVideo
-    ) external {
-        minter mintedBy;
-
-        for (uint256 i = 0; i < title.length; ) {
-            _tokenIds.increment();
-
-            string memory json = constructJSON(
-                title[i],
-                description[i],
-                _imgURI[i],
-                _tokenIds.current(),
-                artistName,
-                isVideo[i]
-            );
-
-            string memory finalTokenUri = string(
-                abi.encodePacked("data:application/json;base64,", json)
-            );
-
-            _mint(_creator, _tokenIds.current());
-            _setTokenURI(_tokenIds.current(), finalTokenUri);
-            if (msg.sender == admin) {
-                mintedBy = minter.Admin;
-            } else {
-                mintedBy = minter.Artist;
-            }
-
-            NFTData memory nftNew = NFTData(
-                address(this),
-                _tokenIds.current(),
-                _imgURI[i],
-                title[i],
-                description[i],
-                isVideo[i],
-                artistData[_creator],
-                mintedBy
-            );
-            nftData[_tokenIds.current()] = nftNew;
-            mintedNfts.push(nftNew);
-
-            creatorTokens[_creator].push(_tokenIds.current());
-
-            emit Mint(
-                msg.sender,
-                _tokenIds.current(),
-                _imgURI[i],
-                title[i],
-                description[i],
-                artistName,
-                artistImg,
-                isVideo[i]
-            );
-
-            unchecked {
-                ++i;
-            }
-        }
+    function burn(
+        address _from,
+        uint256 _tokenId,
+        uint256 _amount
+    ) public onlyArtistOrAdmin {
+        _burn(_from, _tokenId, _amount);
     }
 
     /**

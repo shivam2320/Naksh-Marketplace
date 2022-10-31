@@ -55,7 +55,8 @@ describe("Naksh ERC721 NFT", () => {
           "title1",
           "desc1",
           "artistName1",
-          "artistImg1"
+          "artistImg1",
+          false
         );
       // console.log(await naksh.tokenURI(1));
 
@@ -67,15 +68,18 @@ describe("Naksh ERC721 NFT", () => {
           "title2",
           "desc2",
           "artistName2",
-          "artistImg2"
+          "artistImg2",
+          true
         );
 
       // console.log(await naksh.getNFTData(2));
 
       expect(await naksh.totalSupply()).to.be.equals(2);
       expect(await naksh.balanceOf(creator.address)).to.be.equals(2);
-      await naksh.connect(admin).burn(1);
-      await naksh.connect(creator).burn(2);
+      console.log(await naksh.tokenURI(1));
+      console.log(await naksh.tokenURI(2));
+      // await naksh.connect(admin).burn(1);
+      // await naksh.connect(creator).burn(2);
     });
   });
 

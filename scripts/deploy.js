@@ -14,7 +14,7 @@ async function main() {
   // await hre.run('compile');
 
   // We get the contract to deploy
-  const Naksh = await hre.ethers.getContractFactory("Naksh1155Marketplace");
+  const Naksh = await hre.ethers.getContractFactory("Naksh721Marketplace");
   const naksh = await Naksh
     .deploy
     // ["artist", "0x3f6C3Bc1679731825d457541bD27C1d713698306", "imags"],
@@ -28,8 +28,7 @@ async function main() {
     // ],
     // "0x3f6C3Bc1679731825d457541bD27C1d713698306",
     // ["600"],
-    // ["0x3f6C3Bc1679731825d457541bD27C1d713698306"],
-    // 600
+    // ["0x3f6C3Bc1679731825d457541bD27C1d713698306"]
     ();
 
   await naksh.deployed();

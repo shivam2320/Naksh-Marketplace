@@ -35,7 +35,8 @@ contract Naksh721NFT is ERC721URIStorage {
         string title,
         string description,
         string artistName,
-        string artistImg
+        string artistImg,
+        bool isVideo
     );
 
     uint256 internal constant FLOAT_HANDLER_TEN_4 = 10000;
@@ -210,6 +211,61 @@ contract Naksh721NFT is ERC721URIStorage {
         return mintedNfts;
     }
 
+    function constructJSON(
+        string memory title,
+        string memory description,
+        string memory _imgURI,
+        uint256 _tokenId,
+        string memory artistName,
+        bool isVideo
+    ) internal pure returns (string memory) {
+        if (isVideo == false) {
+            string memory json = Base64.encode(
+                bytes(
+                    string(
+                        abi.encodePacked(
+                            '{"title": "',
+                            title,
+                            '", "description": "',
+                            description,
+                            '", "image": "',
+                            _imgURI,
+                            '", "tokenId": "',
+                            toString(_tokenId),
+                            '", "artist_name": "',
+                            artistName,
+                            '"}'
+                        )
+                    )
+                )
+            );
+            return json;
+        } else {
+            string memory json = Base64.encode(
+                bytes(
+                    string(
+                        abi.encodePacked(
+                            '{"title": "',
+                            title,
+                            '", "description": "',
+                            description,
+                            '", "image": "',
+                            _imgURI,
+                            '", "tokenId": "',
+                            toString(_tokenId),
+                            '", "artist_name": "',
+                            artistName,
+                            '", "animation_url": "',
+                            _imgURI,
+                            '"}'
+                        )
+                    )
+                )
+            );
+            return json;
+        }
+    }
+
     /**
      * This function is used to mint an NFT for the Naksh marketplace.
      * @dev The basic information related to the NFT needs to be passeed to this function,
@@ -217,42 +273,30 @@ contract Naksh721NFT is ERC721URIStorage {
      */
     function mintByArtistOrAdmin(
         address _creator,
-        string memory _tokenURI,
+        string memory _imgURI,
         string memory title,
         string memory description,
         string memory artistName,
-        string memory artistImg
+        string memory artistImg,
+        bool isVideo
     ) external onlyArtistOrAdmin {
         minter mintedBy;
         _tokenIds.increment();
-        uint256 tokenId = _tokenIds.current();
 
-        string memory json = Base64.encode(
-            bytes(
-                string(
-                    abi.encodePacked(
-                        '{"title": "',
-                        title,
-                        '", "description": "',
-                        description,
-                        '", "image": "',
-                        _tokenURI,
-                        '", "tokenId": "',
-                        toString(tokenId),
-                        '", "artist name": "',
-                        artistName,
-                        '"}'
-                    )
-                )
-            )
+        string memory json = constructJSON(
+            title,
+            description,
+            _imgURI,
+            _tokenIds.current(),
+            artistName,
+            isVideo
         );
-
         string memory finalTokenUri = string(
             abi.encodePacked("data:application/json;base64,", json)
         );
 
-        _mint(_creator, tokenId);
-        _setTokenURI(tokenId, finalTokenUri);
+        _mint(_creator, _tokenIds.current());
+        _setTokenURI(_tokenIds.current(), finalTokenUri);
 
         if (msg.sender == admin) {
             mintedBy = minter.Admin;
@@ -262,25 +306,27 @@ contract Naksh721NFT is ERC721URIStorage {
 
         NFTData memory nftNew = NFTData(
             address(this),
-            tokenId,
-            _tokenURI,
+            _tokenIds.current(),
+            _imgURI,
             title,
             description,
+            isVideo,
             artistData[_creator],
             mintedBy
         );
-        nftData[tokenId] = nftNew;
+        nftData[_tokenIds.current()] = nftNew;
         mintedNfts.push(nftNew);
 
-        creatorTokens[_creator].push(tokenId);
+        creatorTokens[_creator].push(_tokenIds.current());
         emit Mint(
             _creator,
-            tokenId,
-            _tokenURI,
+            _tokenIds.current(),
+            _imgURI,
             title,
             description,
             artistName,
-            artistImg
+            artistImg,
+            isVideo
         );
     }
 
@@ -305,44 +351,33 @@ contract Naksh721NFT is ERC721URIStorage {
      */
     function bulkMintByArtistorAdmin(
         address _creator,
-        string[] memory _tokenURI,
+        string[] memory _imgURI,
         string[] memory title,
         string[] memory description,
         string memory artistName,
-        string memory artistImg
+        string memory artistImg,
+        bool[] memory isVideo
     ) external onlyArtistOrAdmin {
         minter mintedBy;
 
         for (uint256 i = 0; i < title.length; ) {
             _tokenIds.increment();
-            uint256 tokenId = _tokenIds.current();
 
-            string memory json = Base64.encode(
-                bytes(
-                    string(
-                        abi.encodePacked(
-                            '{"title": "',
-                            title[i],
-                            '", "description": "',
-                            description[i],
-                            '", "tokenId": "',
-                            tokenId,
-                            '", "image": "',
-                            _tokenURI[i],
-                            '", "artist name": "',
-                            artistName,
-                            '"}'
-                        )
-                    )
-                )
+            string memory json = constructJSON(
+                title[i],
+                description[i],
+                _imgURI[i],
+                _tokenIds.current(),
+                artistName,
+                isVideo[i]
             );
 
             string memory finalTokenUri = string(
                 abi.encodePacked("data:application/json;base64,", json)
             );
 
-            _mint(_creator, tokenId);
-            _setTokenURI(tokenId, finalTokenUri);
+            _mint(_creator, _tokenIds.current());
+            _setTokenURI(_tokenIds.current(), finalTokenUri);
             if (msg.sender == admin) {
                 mintedBy = minter.Admin;
             } else {
@@ -351,26 +386,28 @@ contract Naksh721NFT is ERC721URIStorage {
 
             NFTData memory nftNew = NFTData(
                 address(this),
-                tokenId,
-                _tokenURI[i],
+                _tokenIds.current(),
+                _imgURI[i],
                 title[i],
                 description[i],
+                isVideo[i],
                 artistData[_creator],
                 mintedBy
             );
-            nftData[tokenId] = nftNew;
+            nftData[_tokenIds.current()] = nftNew;
             mintedNfts.push(nftNew);
 
-            creatorTokens[_creator].push(tokenId);
+            creatorTokens[_creator].push(_tokenIds.current());
 
             emit Mint(
                 msg.sender,
-                tokenId,
-                _tokenURI[i],
+                _tokenIds.current(),
+                _imgURI[i],
                 title[i],
                 description[i],
                 artistName,
-                artistImg
+                artistImg,
+                isVideo[i]
             );
 
             unchecked {

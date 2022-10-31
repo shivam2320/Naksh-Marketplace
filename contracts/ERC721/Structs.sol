@@ -33,6 +33,7 @@ struct NFTData {
     string tokenUri;
     string title;
     string description;
+    bool isVideo;
     artistDetails artist;
     minter mintedBy;
 }
