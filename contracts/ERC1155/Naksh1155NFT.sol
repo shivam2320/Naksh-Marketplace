@@ -33,7 +33,8 @@ contract Naksh1155NFT is ERC1155 {
         address creator,
         uint256 tokenId,
         uint256 amount,
-        string tokenURI,
+        string imgURI,
+        string videoURI,
         string title,
         string description,
         string artistName,
@@ -210,6 +211,7 @@ contract Naksh1155NFT is ERC1155 {
         string memory title,
         string memory description,
         string memory _imgURI,
+        string memory _videoURI,
         uint256 _tokenId,
         string memory artistName,
         bool isVideo
@@ -251,7 +253,7 @@ contract Naksh1155NFT is ERC1155 {
                             '", "artist_name": "',
                             artistName,
                             '", "animation_url": "',
-                            _imgURI,
+                            _videoURI,
                             '"}'
                         )
                     )
@@ -269,6 +271,7 @@ contract Naksh1155NFT is ERC1155 {
     function mintByArtistOrAdmin(
         address _creator,
         string memory _imgURI,
+        string memory _videoURI,
         uint256 _amount,
         string memory title,
         string memory description,
@@ -283,17 +286,17 @@ contract Naksh1155NFT is ERC1155 {
             title,
             description,
             _imgURI,
+            _videoURI,
             _tokenIds.current(),
             artistName,
             isVideo
         );
 
-        string memory finalTokenUri = string(
-            abi.encodePacked("data:application/json;base64,", json)
-        );
-
         _mint(_creator, _tokenIds.current(), _amount, "");
-        _setTokenURI(_tokenIds.current(), finalTokenUri);
+        _setTokenURI(
+            _tokenIds.current(),
+            string(abi.encodePacked("data:application/json;base64,", json))
+        );
 
         if (msg.sender == admin) {
             mintedBy = minter.Admin;
@@ -306,6 +309,7 @@ contract Naksh1155NFT is ERC1155 {
             _tokenIds.current(),
             _amount,
             _imgURI,
+            _videoURI,
             title,
             description,
             isVideo,
@@ -321,6 +325,7 @@ contract Naksh1155NFT is ERC1155 {
             _tokenIds.current(),
             _amount,
             _imgURI,
+            _videoURI,
             title,
             description,
             artistName,

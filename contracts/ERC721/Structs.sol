@@ -30,7 +30,8 @@ struct CollectionDetails {
 struct NFTData {
     address nftAddress;
     uint256 tokenId;
-    string tokenUri;
+    string imgUri;
+    string videoUri;
     string title;
     string description;
     bool isVideo;

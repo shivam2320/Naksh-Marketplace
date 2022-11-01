@@ -23,7 +23,7 @@ describe("Naksh Marketplace", () => {
     await nakshM.deployed();
     await nakshM.connect(owner).changeOrgAddress(org.address);
 
-    NakshNFT = await ethers.getContractFactory("Naksh721NFT");
+    NakshNFT = await ethers.getContractFactory("Naksh721DefaultNFT");
     nakshNft = await NakshNFT.connect(owner).deploy(
       ["Shivam", creator.address, "IMGURL"],
       [
@@ -49,10 +49,12 @@ describe("Naksh Marketplace", () => {
         .mintByArtistOrAdmin(
           creator.address,
           "data:application/json;base64,eyJ0aXRsZSI6ICJ0aXRsZSIsICJkZXNjcmlwdGlvbiI6ICJkZXNjIiwgImltYWdlIjogInVyaSIsICJhcnRpc3QgbmF",
+          "",
           "Nakshhhhhh",
           "some descriptionnnnn",
           "Artistttt",
-          "ArtistImg"
+          "ArtistImg",
+          false
         );
 
       await nakshNft.connect(creator).setApprovalForAll(nakshM.address, true);
@@ -68,7 +70,7 @@ describe("Naksh Marketplace", () => {
       });
       // console.log(await nakshM.getSaleData(nakshNft.address, 1));
       const provider = waffle.provider;
-      console.log(await provider.getBalance(creator.address));
+      // console.log(await provider.getBalance(creator.address));
     });
   });
 
@@ -79,10 +81,12 @@ describe("Naksh Marketplace", () => {
         .mintByArtistOrAdmin(
           creator.address,
           "data:application/json;base64,eyJ0aXRsZSI6ICJ0aXRsZSIsICJkZXNjcmlwdGlvbiI6ICJkZXNjIiwgImltYWdlIjogInVyaSIsICJhcnRpc3QgbmF",
+          "",
           "Nakshhhhhh",
           "some descriptionnnnn",
           "Artistttt",
-          "ArtistImg"
+          "ArtistImg",
+          false
         );
 
       await nakshNft.connect(creator).setApprovalForAll(nakshM.address, true);
@@ -90,43 +94,56 @@ describe("Naksh Marketplace", () => {
       expect(await nakshM.isTokenFirstSale(nakshNft.address, 1)).to.equal(
         false
       );
-      // await nakshM.connect(creator).cancelSale(nakshNft.address, 1);
+      await nakshM.connect(creator).cancelSale(nakshNft.address, 1);
       // expect(await nakshM.getSalePrice(nakshNft.address, 1)).to.equal(1);
 
-      await nakshM.buyTokenOnSale(1, nakshNft.address, {
-        value: ethers.utils.parseEther("1"),
-      });
+      // await nakshM.buyTokenOnSale(1, nakshNft.address, {
+      //   value: ethers.utils.parseEther("1"),
+      // });
 
       // console.log(await nakshM.getSaleData(nakshNft.address, 1));
       const provider = waffle.provider;
-      console.log(await provider.getBalance(creator.address));
+      // console.log(await provider.getBalance(creator.address));
     });
   });
 
-  //   describe("Auction", () => {
-  //     it("Should start and end auction", async () => {
-  //       await naksh.createArtist("name", creator.address, "img");
-  //       await naksh.connect(creator).mintByArtist("uri", "title", "desc", "name");
-  //       await naksh.connect(creator).approve(naksh.address, 1);
-  //       await naksh.connect(creator).startAuction(1, 1, 60);
+  describe("Auction", () => {
+    it("Should start and end auction", async () => {
+      await nakshNft
+        .connect(admin)
+        .mintByArtistOrAdmin(
+          creator.address,
+          "data:application/json;base64,eyJ0aXRsZSI6ICJ0aXRsZSIsICJkZXNjcmlwdGlvbiI6ICJkZXNjIiwgImltYWdlIjogInVyaSIsICJhcnRpc3QgbmF",
+          "",
+          "Nakshhhhhh",
+          "some descriptionnnnn",
+          "Artistttt",
+          "ArtistImg",
+          false
+        );
 
-  //       await naksh
-  //         .connect(addr2)
-  //         .bid(1, { value: ethers.utils.parseEther("1") });
-  //       await naksh
-  //         .connect(addr3)
-  //         .bid(1, { value: ethers.utils.parseEther("2") });
-  //       await naksh
-  //         .connect(addr3)
-  //         .bid(1, { value: ethers.utils.parseEther("3") });
-  //       await naksh
-  //         .connect(addr3)
-  //         .bid(1, { value: ethers.utils.parseEther("4") });
+      await nakshNft.connect(creator).setApprovalForAll(nakshM.address, true);
+      await nakshM.connect(creator).startAuction(nakshNft.address, 1, 1, 60);
 
-  //       console.log("Bid History: ", await naksh.getBidHistory(1));
+      await nakshM
+        .connect(addr2)
+        .bid(nakshNft.address, 1, { value: ethers.utils.parseEther("1") });
+      await nakshM
+        .connect(addr3)
+        .bid(nakshNft.address, 1, { value: ethers.utils.parseEther("2") });
+      await nakshM
+        .connect(addr3)
+        .bid(nakshNft.address, 1, { value: ethers.utils.parseEther("3") });
+      await nakshM
+        .connect(addr3)
+        .bid(nakshNft.address, 1, { value: ethers.utils.parseEther("4") });
 
-  //       await expect(naksh.connect(creator).endAuction(1, naksh.address)).to.be
-  //         .reverted;
-  //     });
-  //   });
+      // console.log(
+      //   "Bid History: ",
+      //   await nakshM.getBidHistory(nakshNft.address, 1)
+      // );
+      // console.log(await nakshM.getSaleData(nakshNft.address, 1));
+      await nakshM.connect(creator).endAuction(nakshNft.address, 1);
+    });
+  });
 });

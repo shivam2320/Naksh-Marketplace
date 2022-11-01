@@ -31,7 +31,8 @@ struct NFTData {
     address nftAddress;
     uint256 tokenId;
     uint256 amount;
-    string tokenUri;
+    string imgUri;
+    string videoUri;
     string title;
     string description;
     bool isVideo;

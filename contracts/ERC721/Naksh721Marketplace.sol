@@ -122,6 +122,7 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
         saleData[_nftAddress][_tokenId].isOnSale = false;
         SaleData memory _saleData;
         _saleData = saleData[_nftAddress][_tokenId];
+        // console.log(_saleData);
 
         for (uint256 i = 0; i < leng; ) {
             if (
@@ -164,8 +165,7 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
             saleData[_nft][_tokenId].isOnSale == true,
             "NFT is not on sale"
         );
-        console.log(_nft);
-        console.log(_tokenId);
+
         return saleData[_nft][_tokenId];
     }
 

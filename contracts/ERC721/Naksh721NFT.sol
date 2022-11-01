@@ -31,7 +31,8 @@ contract Naksh721NFT is ERC721URIStorage {
     event Mint(
         address creator,
         uint256 tokenId,
-        string tokenURI,
+        string imgURI,
+        string videoURI,
         string title,
         string description,
         string artistName,
@@ -215,6 +216,7 @@ contract Naksh721NFT is ERC721URIStorage {
         string memory title,
         string memory description,
         string memory _imgURI,
+        string memory _videoURI,
         uint256 _tokenId,
         string memory artistName,
         bool isVideo
@@ -256,7 +258,7 @@ contract Naksh721NFT is ERC721URIStorage {
                             '", "artist_name": "',
                             artistName,
                             '", "animation_url": "',
-                            _imgURI,
+                            _videoURI,
                             '"}'
                         )
                     )
@@ -274,6 +276,7 @@ contract Naksh721NFT is ERC721URIStorage {
     function mintByArtistOrAdmin(
         address _creator,
         string memory _imgURI,
+        string memory _videoURI,
         string memory title,
         string memory description,
         string memory artistName,
@@ -287,6 +290,7 @@ contract Naksh721NFT is ERC721URIStorage {
             title,
             description,
             _imgURI,
+            _videoURI,
             _tokenIds.current(),
             artistName,
             isVideo
@@ -308,6 +312,7 @@ contract Naksh721NFT is ERC721URIStorage {
             address(this),
             _tokenIds.current(),
             _imgURI,
+            _videoURI,
             title,
             description,
             isVideo,
@@ -322,6 +327,7 @@ contract Naksh721NFT is ERC721URIStorage {
             _creator,
             _tokenIds.current(),
             _imgURI,
+            _videoURI,
             title,
             description,
             artistName,
@@ -352,6 +358,7 @@ contract Naksh721NFT is ERC721URIStorage {
     function bulkMintByArtistorAdmin(
         address _creator,
         string[] memory _imgURI,
+        string[] memory _videoURI,
         string[] memory title,
         string[] memory description,
         string memory artistName,
@@ -367,17 +374,17 @@ contract Naksh721NFT is ERC721URIStorage {
                 title[i],
                 description[i],
                 _imgURI[i],
+                _videoURI[i],
                 _tokenIds.current(),
                 artistName,
                 isVideo[i]
             );
 
-            string memory finalTokenUri = string(
-                abi.encodePacked("data:application/json;base64,", json)
-            );
-
             _mint(_creator, _tokenIds.current());
-            _setTokenURI(_tokenIds.current(), finalTokenUri);
+            _setTokenURI(
+                _tokenIds.current(),
+                string(abi.encodePacked("data:application/json;base64,", json))
+            );
             if (msg.sender == admin) {
                 mintedBy = minter.Admin;
             } else {
@@ -388,6 +395,7 @@ contract Naksh721NFT is ERC721URIStorage {
                 address(this),
                 _tokenIds.current(),
                 _imgURI[i],
+                _videoURI[i],
                 title[i],
                 description[i],
                 isVideo[i],
@@ -403,6 +411,7 @@ contract Naksh721NFT is ERC721URIStorage {
                 msg.sender,
                 _tokenIds.current(),
                 _imgURI[i],
+                _videoURI[i],
                 title[i],
                 description[i],
                 artistName,
