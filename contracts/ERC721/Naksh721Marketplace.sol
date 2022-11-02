@@ -97,12 +97,14 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
         require(tOwner != address(0), "setSale: nonexistent token");
 
         IERC721(_nft).safeTransferFrom(msg.sender, address(this), _tokenId);
-        saleData[_nft][_tokenId].nft = Naksh721NFT(_nft).getNFTData(_tokenId);
-        saleData[_nft][_tokenId].isOnSale = true;
-        saleData[_nft][_tokenId].owner = msg.sender;
-        saleData[_nft][_tokenId].salePrice = price;
-        saleData[_nft][_tokenId].saletype = saleType.DirectSale;
-        OnSaleNFTs.push(saleData[_nft][_tokenId]);
+        SaleData memory _saleData;
+        _saleData.nft = Naksh721NFT(_nft).getNFTData(_tokenId);
+        _saleData.isOnSale = true;
+        _saleData.owner = msg.sender;
+        _saleData.salePrice = price;
+        _saleData.saletype = saleType.DirectSale;
+        OnSaleNFTs.push(_saleData);
+        saleData[_nft][_tokenId] = _saleData;
         emit SalePriceSet(
             _nft,
             _tokenId,
@@ -118,20 +120,19 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
     }
 
     function updateSaleData(address _nftAddress, uint256 _tokenId) internal {
-        uint256 leng = OnSaleNFTs.length;
         saleData[_nftAddress][_tokenId].isOnSale = false;
         SaleData memory _saleData;
         _saleData = saleData[_nftAddress][_tokenId];
         // console.log(_saleData);
 
-        for (uint256 i = 0; i < leng; ) {
+        for (uint256 i = 0; i < OnSaleNFTs.length; ) {
             if (
                 OnSaleNFTs[i].nft.nftAddress == _nftAddress &&
                 OnSaleNFTs[i].nft.tokenId == _tokenId
             ) {
                 _saleData = OnSaleNFTs[i];
-                OnSaleNFTs[i] = OnSaleNFTs[leng - 1];
-                OnSaleNFTs[leng - 1] = _saleData;
+                OnSaleNFTs[i] = OnSaleNFTs[OnSaleNFTs.length - 1];
+                OnSaleNFTs[OnSaleNFTs.length - 1] = _saleData;
             }
             OnSaleNFTs.pop();
             unchecked {
@@ -224,7 +225,6 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
         }
 
         Naksh_org.transfer(toPlatform);
-
         updateSaleData(_nftAddress, _tokenId);
 
         emit Sold(

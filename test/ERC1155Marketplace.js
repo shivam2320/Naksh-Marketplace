@@ -50,11 +50,13 @@ describe("Naksh Marketplace", () => {
           .mintByArtistOrAdmin(
             creator.address,
             "data:application/json;base64,eyJ0aXRsZSI6ICJ0aXRsZSIsICJkZXNjcmlwdGlvbiI6ICJkZXNjIiwgImltYWdlIjogInVyaSIsICJhcnRpc3QgbmF",
+            "asas",
             "10",
             "Nakshhhhhh",
             "some descriptionnnnn",
             "Artistttt",
-            "ArtistImg"
+            "ArtistImg",
+            false
           )
       );
       await nakshNft.connect(creator).setApprovalForAll(nakshM.address, true);
@@ -66,6 +68,15 @@ describe("Naksh Marketplace", () => {
       await nakshM
         .connect(addr1)
         .buyTokenOnSale(1, nakshNft.address, creator.address, 10, {
+          value: ethers.utils.parseEther("1"),
+        });
+
+      await nakshNft.connect(addr1).setApprovalForAll(nakshM.address, true);
+      await nakshM.connect(addr1).setSale(nakshNft.address, 1, 10, 1000);
+      console.log("setsale");
+      await nakshM
+        .connect(addr3)
+        .buyTokenOnSale(1, nakshNft.address, addr1.address, 10, {
           value: ethers.utils.parseEther("1"),
         });
       // expect(

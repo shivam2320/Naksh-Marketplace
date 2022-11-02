@@ -65,7 +65,14 @@ describe("Naksh Marketplace", () => {
       // await nakshM.connect(creator).cancelSale(nakshNft.address, 1);
       expect(await nakshM.getSalePrice(nakshNft.address, 1)).to.equal(1);
 
-      await nakshM.buyTokenOnSale(1, nakshNft.address, {
+      await nakshM.connect(addr3).buyTokenOnSale(1, nakshNft.address, {
+        value: ethers.utils.parseEther("1"),
+      });
+      console.log("1st working");
+      await nakshNft.connect(addr3).setApprovalForAll(nakshM.address, true);
+      await nakshM.connect(addr3).setSale(nakshNft.address, 1, 1);
+      console.log("2nd sale set");
+      await nakshM.connect(addr1).buyTokenOnSale(1, nakshNft.address, {
         value: ethers.utils.parseEther("1"),
       });
       // console.log(await nakshM.getSaleData(nakshNft.address, 1));
