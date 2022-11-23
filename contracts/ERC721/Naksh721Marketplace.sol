@@ -103,6 +103,9 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
         _saleData.owner = msg.sender;
         _saleData.salePrice = price;
         _saleData.saletype = saleType.DirectSale;
+        if (isTokenFirstSale(_nft, _tokenId) == true) {
+            _saleData.tokenFirstSale = true;
+        }
         OnSaleNFTs.push(_saleData);
         saleData[_nft][_tokenId] = _saleData;
         emit SalePriceSet(
@@ -123,7 +126,6 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
         saleData[_nftAddress][_tokenId].isOnSale = false;
         SaleData memory _saleData;
         _saleData = saleData[_nftAddress][_tokenId];
-        // console.log(_saleData);
 
         for (uint256 i = 0; i < OnSaleNFTs.length; ) {
             if (
@@ -191,10 +193,7 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
 
         require(price != 0, "buyToken: price equals 0");
         require(msg.value >= price, "buyToken: price doesn't equal salePrice");
-        address tOwner = saleData[_nftAddress][_tokenId]
-            .nft
-            .artist
-            .artistAddress;
+        address tOwner = saleData[_nftAddress][_tokenId].owner;
 
         IERC721(_nftAddress).safeTransferFrom(
             address(this),
@@ -219,9 +218,10 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
         uint256 toPlatform = (msg.value * platformFees) / FLOAT_HANDLER_TEN_4;
 
         payable(tOwner).transfer(toSeller);
+        console.log(tOwner);
 
         if (totalCreatorFees != 0) {
-            splitCreatorRoyalty(address(_nft), creatorRoyalty);
+            splitCreatorRoyalty(address(_nft), creatorRoyalty, msg.value);
         }
 
         Naksh_org.transfer(toPlatform);
@@ -239,16 +239,23 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
 
     function splitCreatorRoyalty(
         address _nftAddress,
-        uint16[] memory creatorRoyalty
+        uint16[] memory creatorRoyalty,
+        uint256 value
     ) internal {
+        console.log("splitting");
         Naksh721NFT _nft = Naksh721NFT(_nftAddress);
         uint256 _TotalSplits = _nft.TotalSplits();
-        uint256[] memory toCreators;
+
+        uint256[] memory toCreators = new uint256[](_TotalSplits);
+
         for (uint8 i = 0; i < _TotalSplits; ) {
-            toCreators[i] =
-                (msg.value * creatorRoyalty[i]) /
-                FLOAT_HANDLER_TEN_4;
+            toCreators[i] = (value * creatorRoyalty[i]) / FLOAT_HANDLER_TEN_4;
+
             payable(_nft.creators(i)).transfer(toCreators[i]);
+
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -347,6 +354,7 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
         saleData[_nftAddress][_tokenId].nft = Naksh721NFT(_nftAddress)
             .getNFTData(_tokenId);
         saleData[_nftAddress][_tokenId].isOnSale = true;
+        saleData[_nftAddress][_tokenId].owner = msg.sender;
         saleData[_nftAddress][_tokenId].salePrice = _price;
         saleData[_nftAddress][_tokenId].saletype = saleType.Auction;
         OnSaleNFTs.push(saleData[_nftAddress][_tokenId]);
@@ -419,6 +427,11 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
 
     function endAuction(address _nftAddress, uint256 _tokenId) external {
         NFTAuction storage nftAuction = auctionData[_nftAddress][_tokenId];
+        Naksh721NFT _nft = Naksh721NFT(_nftAddress);
+        uint256 sellerFees = _nft.getSellerFee();
+        uint16[] memory creatorRoyalty = _nft.getCreatorFees();
+        uint256 totalCreatorFees = _nft.getTotalCreatorFees();
+        uint256 platformFees = _nft.orgFee();
 
         require(
             nftAuction.owner == msg.sender ||
@@ -432,8 +445,51 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
             "Auction has not yet ended"
         );
 
-        if (nftAuction.highestBidder != address(0)) {
-            payable(msg.sender).transfer(nftAuction.highestBid);
+        if (saleData[_nftAddress][_tokenId].tokenFirstSale == false) {
+            platformFees = _nft.orgFeeInitial();
+
+            sellerFees = _nft.sellerFeeInitial();
+
+            // No creator royalty/royalties when artist is minting for the first time
+            totalCreatorFees = 0;
+
+            saleData[_nftAddress][_tokenId].tokenFirstSale = true;
+        } else {
+            totalCreatorFees = _nft.getTotalCreatorFees();
+        }
+
+        if (
+            nftAuction.owner == msg.sender &&
+            nftAuction.endTime >= block.timestamp
+        ) {
+            if (nftAuction.highestBidder != address(0)) {
+                payable(nftAuction.highestBidder).transfer(
+                    nftAuction.highestBid
+                );
+            }
+            IERC721(_nftAddress).safeTransferFrom(
+                address(this),
+                nftAuction.owner,
+                _tokenId
+            );
+        } else if (nftAuction.highestBidder != address(0)) {
+            uint256 toSeller = (nftAuction.highestBid * sellerFees) /
+                FLOAT_HANDLER_TEN_4;
+
+            uint256 toPlatform = (nftAuction.highestBid * platformFees) /
+                FLOAT_HANDLER_TEN_4;
+
+            payable(nftAuction.owner).transfer(toSeller);
+
+            Naksh_org.transfer(toPlatform);
+
+            if (totalCreatorFees != 0) {
+                splitCreatorRoyalty(
+                    address(_nft),
+                    creatorRoyalty,
+                    nftAuction.highestBid
+                );
+            }
 
             IERC721(_nftAddress).safeTransferFrom(
                 address(this),
@@ -443,7 +499,7 @@ contract Naksh721Marketplace is Ownable, ERC721Holder, ReentrancyGuard {
         } else {
             IERC721(_nftAddress).safeTransferFrom(
                 address(this),
-                msg.sender,
+                nftAuction.owner,
                 _tokenId
             );
         }

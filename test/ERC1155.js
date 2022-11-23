@@ -49,13 +49,15 @@ describe("Naksh ERC1155 NFT", () => {
       await naksh
         .connect(creator)
         .mintByArtistOrAdmin(
-          creator.address,
+          addr1.address,
           "tokenuri1",
+          "saas",
           10,
           "title1",
           "desc1",
           "artistName1",
-          "artistImg1"
+          "artistImg1",
+          false
         );
       // console.log(await naksh.tokenURI(1));
 
@@ -64,14 +66,16 @@ describe("Naksh ERC1155 NFT", () => {
         .mintByArtistOrAdmin(
           creator.address,
           "tokenuri2",
+          "asas",
           20,
           "title2",
           "desc2",
           "artistName2",
-          "artistImg2"
+          "artistImg2",
+          true
         );
 
-      // console.log(await naksh.getNFTData(2));
+      console.log(await naksh.getNFTData(1));
 
       expect(await naksh.totalSupply()).to.be.equals(2);
       expect(await naksh.balanceOf(creator.address, 1)).to.be.equals(10);

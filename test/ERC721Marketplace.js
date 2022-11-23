@@ -8,6 +8,8 @@ describe("Naksh Marketplace", () => {
   let addr1;
   let addr2;
   let addr3;
+  let addr4;
+  let addr5;
   let creator;
   let NakshMarket;
   let nakshM;
@@ -15,7 +17,7 @@ describe("Naksh Marketplace", () => {
   let nakshNft;
 
   beforeEach(async () => {
-    [owner, org, admin, addr1, addr2, addr3, creator] =
+    [owner, org, admin, addr1, addr2, addr3, addr4, addr5, creator] =
       await ethers.getSigners();
     NakshMarket = await ethers.getContractFactory("Naksh721Marketplace");
     nakshM = await NakshMarket.connect(owner).deploy();
@@ -35,8 +37,8 @@ describe("Naksh Marketplace", () => {
         ["INSTA", "FB", "TWITR", "Website"],
       ],
       admin.address,
-      [500, 600],
-      [addr1.address, addr2.address]
+      [],
+      []
     );
 
     await nakshNft.deployed();
@@ -59,22 +61,34 @@ describe("Naksh Marketplace", () => {
 
       await nakshNft.connect(creator).setApprovalForAll(nakshM.address, true);
       await nakshM.connect(creator).setSale(nakshNft.address, 1, 1);
+      console.log("1st owner", creator.address);
       expect(await nakshM.isTokenFirstSale(nakshNft.address, 1)).to.equal(
         false
       );
       // await nakshM.connect(creator).cancelSale(nakshNft.address, 1);
       expect(await nakshM.getSalePrice(nakshNft.address, 1)).to.equal(1);
-
-      await nakshM.connect(addr3).buyTokenOnSale(1, nakshNft.address, {
+      // console.log(
+      //   "1st sale data",
+      //   await nakshM.getSaleData(nakshNft.address, 1)
+      // );
+      await nakshM.connect(addr4).buyTokenOnSale(1, nakshNft.address, {
         value: ethers.utils.parseEther("1"),
       });
+      console.log("addr4", addr4.address);
       console.log("1st working");
-      await nakshNft.connect(addr3).setApprovalForAll(nakshM.address, true);
-      await nakshM.connect(addr3).setSale(nakshNft.address, 1, 1);
-      console.log("2nd sale set");
-      await nakshM.connect(addr1).buyTokenOnSale(1, nakshNft.address, {
+      await nakshNft.connect(addr4).setApprovalForAll(nakshM.address, true);
+      await nakshM.connect(addr4).setSale(nakshNft.address, 1, 1);
+      // expect(await nakshM.isTokenFirstSale(nakshNft.address, 1)).to.equal(true);
+      // console.log(
+      //   "2nd sale data",
+      //   await nakshM.getSaleData(nakshNft.address, 1)
+      // );
+
+      await nakshM.connect(addr5).buyTokenOnSale(1, nakshNft.address, {
         value: ethers.utils.parseEther("1"),
       });
+      console.log("addr5", addr5.address);
+      console.log("2nd working");
       // console.log(await nakshM.getSaleData(nakshNft.address, 1));
       const provider = waffle.provider;
       // console.log(await provider.getBalance(creator.address));
@@ -151,6 +165,12 @@ describe("Naksh Marketplace", () => {
       // );
       // console.log(await nakshM.getSaleData(nakshNft.address, 1));
       await nakshM.connect(creator).endAuction(nakshNft.address, 1);
+      console.log("2nd auction");
+      await nakshNft.connect(creator).setApprovalForAll(nakshM.address, true);
+      await nakshM.connect(creator).startAuction(nakshNft.address, 1, 1, 60);
+
+      await nakshM.connect(creator).endAuction(nakshNft.address, 1);
+      expect(await nakshNft.ownerOf(1)).to.equal(creator.address);
     });
   });
 });

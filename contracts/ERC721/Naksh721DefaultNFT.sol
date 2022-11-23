@@ -305,7 +305,7 @@ contract Naksh721DefaultNFT is ERC721URIStorage {
             title,
             description,
             isVideo,
-            artistData[_creator],
+            artistDetails(artistName, _creator, artistImg),
             mintedBy
         );
         nftData[_tokenIds.current()] = nftNew;
@@ -388,7 +388,7 @@ contract Naksh721DefaultNFT is ERC721URIStorage {
                 title[i],
                 description[i],
                 isVideo[i],
-                artistData[_creator],
+                artistDetails(artistName, _creator, artistImg),
                 mintedBy
             );
             nftData[_tokenIds.current()] = nftNew;

@@ -313,7 +313,7 @@ contract Naksh1155NFT is ERC1155 {
             title,
             description,
             isVideo,
-            artistData[_creator],
+            artistDetails(artistName, _creator, artistImg),
             mintedBy
         );
         nftData[_tokenIds.current()] = nftNew;

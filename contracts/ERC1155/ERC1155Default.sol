@@ -48,13 +48,13 @@ contract Naksh1155DefaultNFT is ERC1155 {
     string public symbol;
     address public admin;
     uint256 public sellerFee;
-    uint256 public orgFee = 500;
+    uint256 public orgFee = 1;
     uint16[] public creatorFees;
     uint256 public totalCreatorFees;
     address payable[] public creators;
     uint256 public TotalSplits;
     uint256 public sellerFeeInitial;
-    uint256 public orgFeeInitial = 500;
+    uint256 public orgFeeInitial = 1;
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 

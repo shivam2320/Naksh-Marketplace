@@ -128,6 +128,9 @@ contract Naksh1155Marketplace is Ownable, ERC1155Holder, ReentrancyGuard {
         _saleData.onSaleAmount = _amount;
         _saleData.salePrice = price;
         _saleData.saletype = saleType.DirectSale;
+        if (isTokenFirstSale(_nft, _tokenId, msg.sender) == true) {
+            _saleData.tokenFirstSale = true;
+        }
         OnSaleNFTs.push(_saleData);
         saleData[_nft][_tokenId][msg.sender] = _saleData;
         emit SalePriceSet(
@@ -238,10 +241,7 @@ contract Naksh1155Marketplace is Ownable, ERC1155Holder, ReentrancyGuard {
                     saleData[_nftAddress][_tokenId][_ownerAddr].salePrice),
             "price doesn't equal salePrice"
         );
-        address tOwner = saleData[_nftAddress][_tokenId][_ownerAddr]
-            .nft
-            .artist
-            .artistAddress;
+        address tOwner = saleData[_nftAddress][_tokenId][_ownerAddr]._owner;
 
         IERC1155(_nftAddress).safeTransferFrom(
             address(this),
@@ -270,7 +270,8 @@ contract Naksh1155Marketplace is Ownable, ERC1155Holder, ReentrancyGuard {
         if (totalCreatorFees != 0) {
             splitCreatorRoyalty(
                 address(Naksh1155NFT(_nftAddress)),
-                creatorRoyalty
+                creatorRoyalty,
+                msg.value
             );
         }
 
@@ -291,16 +292,18 @@ contract Naksh1155Marketplace is Ownable, ERC1155Holder, ReentrancyGuard {
 
     function splitCreatorRoyalty(
         address _nftAddress,
-        uint16[] memory creatorRoyalty
+        uint16[] memory creatorRoyalty,
+        uint256 value
     ) internal {
         Naksh1155NFT _nft = Naksh1155NFT(_nftAddress);
         uint256 _TotalSplits = _nft.TotalSplits();
-        uint256[] memory toCreators;
+        uint256[] memory toCreators = new uint256[](_TotalSplits);
         for (uint8 i = 0; i < _TotalSplits; ) {
-            toCreators[i] =
-                (msg.value * creatorRoyalty[i]) /
-                FLOAT_HANDLER_TEN_4;
+            toCreators[i] = (value * creatorRoyalty[i]) / FLOAT_HANDLER_TEN_4;
             payable(_nft.creators(i)).transfer(toCreators[i]);
+            unchecked {
+                ++i;
+            }
         }
     }
 
